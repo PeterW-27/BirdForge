@@ -90,3 +90,13 @@ input[aria-invalid="true"]:focus-visible, textarea[aria-invalid="true"]:focus-vi
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+.status-history { margin-top: var(--space-3); border-top: 1px solid var(--color-line); padding-top: var(--space-3); }
+.status-history summary { cursor: pointer; font-weight: 650; }
+.status-history ol { padding-left: 24px; margin-bottom: 0; }
+.status-history li { padding: 6px 0; overflow-wrap: anywhere; }
+.status-history li span, .status-history time { display: block; font-size: 13px; color: var(--color-muted); }
+.footer-data-actions { display: flex; gap: 8px; margin-top: var(--space-3); }
+.footer-data-button { min-height: 44px; padding: 8px 14px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: transparent; color: var(--color-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.footer-data-button:hover { color: var(--color-accent); border-color: var(--color-accent); background: var(--color-accent-soft); }
+.backup-save-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }

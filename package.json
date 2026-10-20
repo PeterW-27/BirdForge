@@ -1,6 +1,6 @@
 {
-  "name": "gunters-forge-v5-10",
-  "version": "5.10.0",
+  "name": "gunters-forge-v5-11",
+  "version": "5.11.0",
   "private": true,
   "type": "module",
   "description": "Modular medieval blacksmith storefront, commissions, bulk orders and chronological production tickets",

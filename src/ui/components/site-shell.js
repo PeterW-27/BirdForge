@@ -37,6 +37,11 @@ export function footer() {
     <p>Market Quarter, royal town of Mautern · Open from first bell to sunset.</p>
     <p>First come, first forged: every order is made in the order it arrives.</p>
     <p class="demo-note">Competition demo: no real purchases or payments. Orders stay in this browser, so use made-up customer details.</p>
+    <div class="footer-data-actions" role="group" aria-label="Data backup">
+      <button type="button" class="footer-data-button" data-action="export-backup">Backup</button>
+      <button type="button" class="footer-data-button" data-action="restore-backup">Restore</button>
+    </div>
+    <input id="backup-file" type="file" accept=".json,application/json" aria-label="Choose backup file" hidden>
   </div></footer>`;
 }
 

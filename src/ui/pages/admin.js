@@ -1,3 +1,4 @@
+import { statusHistory } from '../components/status-history.js';
 import { catalog, groups } from '../../data/catalog.js';
 import { orderStats, statusesFor, queueInfo, isQuotedType, parseCrowns, ORDER_TYPES } from '../../domain/core.js';
 import { productInUse } from '../../domain/products.js';
@@ -51,6 +52,7 @@ function adminOrder(state, order) {
     <div class="split"><h3>${text(order.id)} · ${text(typeLabel(order.type))}</h3><span class="admin-badges">${place}${statusBadge(order.status)}</span></div>
     ${details}
     ${quoteForm(order)}
+    ${statusHistory(order)}
     <div class="split">${total}<label>Update status<select data-action="status" data-id="${text(order.id)}">${options}</select></label></div>
   </article>`;
 }

@@ -92,6 +92,10 @@ ChatGPT assisted with making commission orders enter Processing automatically wh
 
 Claude Code assisted with this revision. Form errors now appear under the field that needs fixing, and quote prices are checked against the 100000-crown limit before saving. The Forge Board gained a Show delivered option, an example and live preview for new products, and removal of added products that no order uses. Customers and Gunter can open uploaded reference images in a viewer. The tablet header and the phone home screen were made more compact, and short animations were added for dialogs, notices and the satchel count. Automated tests were added for the new rules.
 
+### V5.11 — October 20, 2026
+
+OpenAI Codex assisted with implementing order status history, footer Backup/Restore controls, save confirmation and filename entry, system save/share options, and file validation. 
+
 ## Project direction and review
 
 Project requirements and revision priorities were directed by the team. Student feedback identified usability issues, guided requested changes, and informed the selection of visual assets. All the comments were written by the team.

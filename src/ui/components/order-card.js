@@ -1,3 +1,4 @@
+import { statusHistory } from './status-history.js';
 import { isQuotedType } from '../../domain/core.js';
 import { text, price, progress, statusBadge, crestImage, typeLabel, queuePanel, referenceButton } from './shared.js';
 
@@ -38,5 +39,6 @@ export function orderCard(order, queue = null, { highlight = false } = {}) {
     <p>${order.items.map((item) => `${item.qty} × ${text(item.name)}`).join(' · ')}</p>
     ${detailLines(order)}
     ${priceLine(order)}
+    ${statusHistory(order)}
   </article>`;
 }

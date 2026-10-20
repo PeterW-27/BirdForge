@@ -38,6 +38,25 @@ export const money = (cents) => {
 export const escapeHTML = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
+export function orderHistory(order) {
+  if (!Array.isArray(order.statusHistory) || !order.statusHistory.length) {
+    return [{ status: order.status, at: order.status === 'Placed' ? order.createdAt : null, reason: order.status === 'Placed' ? 'placed' : 'legacy' }];
+  }
+  const reasons = ['placed', 'manual', 'quote', 'completed', 'legacy'];
+  const valid = order.statusHistory.every((entry) => entry && statusesFor(order.type).includes(entry.status)
+    && reasons.includes(entry.reason)
+    && (entry.at === null ? entry.reason === 'legacy' : typeof entry.at === 'string' && Number.isFinite(Date.parse(entry.at))));
+  if (!valid || order.statusHistory.at(-1).status !== order.status) {
+    return [{ status: order.status, at: null, reason: 'legacy' }];
+  }
+  return order.statusHistory.map(({ status, at, reason }) => ({ status, at, reason }));
+}
+
+function transitionOrder(order, status, reason, at) {
+  if (order.status === status) return order;
+  return { ...order, status, statusHistory: [...orderHistory(order), { status, at, reason }] };
+}
+
 export function makeState() {
   return { cart: {}, orders: [], favorites: [], completedTickets: [], addedProducts: [] };
 }
@@ -96,7 +115,7 @@ export function restoreState(raw, catalog) {
       if (!isValidOrder(order, allIds) || seen.has(order.id)) return false;
       seen.add(order.id);
       return true;
-    });
+    }).map((order) => ({ ...order, statusHistory: orderHistory(order) }));
   }
   if (Array.isArray(raw.completedTickets)) {
     const validTicketIds = new Set(fresh.orders.flatMap((o) => o.items.map((_, i) => `${o.id}-${i}`)));
@@ -180,6 +199,7 @@ export function placeCartOrder(catalog, state, input, id, createdAt) {
     createdAt,
     type: 'standard',
     status: 'Placed',
+    statusHistory: [{ status: 'Placed', at: createdAt, reason: 'placed' }],
     customer: cleanCustomer(input),
     items: lines,
     totalCents: totalCents(catalog, state),
@@ -216,6 +236,7 @@ export function placeDirectOrder(catalog, state, productId, mode, input, id, cre
     createdAt,
     type,
     status: 'Placed',
+    statusHistory: [{ status: 'Placed', at: createdAt, reason: 'placed' }],
     customer: cleanCustomer(input),
     items: [{ id: product.id, name: product.name, qty, priceCents: product.priceCents }],
     title: mode === 'bulk' ? title : '',
@@ -241,6 +262,7 @@ export function placeRepairOrder(state, input, id, createdAt, referenceImage = n
     createdAt,
     type: 'repair',
     status: 'Placed',
+    statusHistory: [{ status: 'Placed', at: createdAt, reason: 'placed' }],
     customer: cleanCustomer(input),
     items: [{ id: 'repair-item', name: String(input.itemName).trim(), qty: Number(input.qty), priceCents: null }],
     description: String(input.damage).trim(),
@@ -251,7 +273,7 @@ export function placeRepairOrder(state, input, id, createdAt, referenceImage = n
 }
 
 // 
-export function updateStatus(state, id, status) {
+export function updateStatus(state, id, status, at = new Date().toISOString()) {
   const previous = state.orders.find((order) => order.id === id);
   if (!previous) return { error: 'Order not found.' };
   if (!statusesFor(previous.type).includes(status)) return { error: 'Invalid forge status.' };
@@ -263,7 +285,7 @@ export function updateStatus(state, id, status) {
   return {
     state: {
       ...state,
-      orders: state.orders.map((order) => (order.id === id ? { ...order, status } : order)),
+      orders: state.orders.map((order) => (order.id === id ? transitionOrder(order, status, 'manual', at) : order)),
       completedTickets,
     },
   };
@@ -277,13 +299,13 @@ export function parseCrowns(value) {
 }
 
 // handling price setting for Commission and Repair, and update status to Processing. 
-export function setQuote(state, id, crowns) {
+export function setQuote(state, id, crowns, at = new Date().toISOString()) {
   const order = state.orders.find((o) => o.id === id);
   if (!order) return { error: 'Order not found.' };
   if (!isQuotedType(order.type)) return { error: 'Only custom commissions and repairs need a quote.' };
   const cents = parseCrowns(crowns);
   if (cents === null || cents <= 0 || cents > MAX_QUOTE_CENTS) return { error: PRICE_ERROR };
-  return { state: { ...state, orders: state.orders.map((o) => (o.id === id ? { ...o, totalCents: cents, status: o.type === 'custom' && ['Placed', 'Assessing'].includes(o.status) ? 'Processing' : o.status } : o)) } };
+  return { state: { ...state, orders: state.orders.map((o) => (o.id === id ? { ...transitionOrder(o, o.type === 'custom' && ['Placed', 'Assessing'].includes(o.status) ? 'Processing' : o.status, 'quote', at), totalCents: cents } : o)) } };
 }
 
 export function orderStats(state) {
@@ -298,7 +320,7 @@ export function orderStats(state) {
 }
 
 // locate the current ending ticket in the forge board order list and mark finished orders' status Delivering. 
-export function toggleTicket(state, id) {
+export function toggleTicket(state, id, at = new Date().toISOString()) {
   const order = state.orders.find((o) => o.items.some((_, index) => `${o.id}-${index}` === id));
   if (!order) return { error: 'Work ticket not found.' };
   if (!ticketStatusesFor(order.type).includes(order.status)) return { error: 'This order is not in the production queue.' };
@@ -306,7 +328,7 @@ export function toggleTicket(state, id) {
   if (completed.has(id)) return { error: 'This work ticket was already completed.' };
   completed.add(id);
   const allFinished = order.items.every((_, index) => completed.has(`${order.id}-${index}`));
-  const orders = allFinished ? state.orders.map((o) => (o.id === order.id ? { ...o, status: 'Delivering' } : o)) : state.orders;
+  const orders = allFinished ? state.orders.map((o) => (o.id === order.id ? transitionOrder(o, 'Delivering', 'completed', at) : o)) : state.orders;
   return { state: { ...state, completedTickets: [...completed], orders }, advanced: allFinished };
 }
 

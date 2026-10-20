@@ -63,7 +63,7 @@ for link in re.findall(r'<link rel="stylesheet" href="([^"]+)">', html):
     content = (ROOT / link).read_text(encoding='utf-8')
     html = html.replace(f'<link rel="stylesheet" href="{link}">', '<style>\n'+content+'\n</style>')
 html = html.replace('<script type="module" src="src/main.js"></script>','<script>\n'+script+'\n</script>')
-output = ROOT / 'dist' / 'Gunters_Forge_V5_10_Standalone.html'
+output = ROOT / 'dist' / 'Gunters_Forge_V5_11_Standalone.html'
 output.parent.mkdir(exist_ok=True, parents=True)
 output.write_text(html, encoding='utf-8')
 print(f'Built {output} from {len(modules)} ES modules')

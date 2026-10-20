@@ -1,3 +1,4 @@
+import { createBackup, parseBackup, MAX_BACKUP_BYTES } from '../domain/backup.js';
 import { builtInCatalog } from '../data/catalog.js';
 import { addProduct, removeProduct, EXAMPLE_PRODUCT } from '../domain/products.js';
 import { loadState, saveState, resetState, storageAvailable, STORAGE_KEY } from '../data/storage.js';
@@ -34,6 +35,8 @@ export function mountApp(documentRoot = document) {
   let state = loadState(builtInCatalog);
   let catalog = [...builtInCatalog, ...state.addedProducts];
   const ui = { view: 'shop', search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', showDelivered: false, productFormOpen: false, lastOrder: null, recycle: false, recycleDetails: '' };
+  let backupRead = 0;
+  let savingBackup = false;
   let activeModal = null;
   let returnFocus = null;
   let toastTimer = null;
@@ -50,10 +53,10 @@ export function mountApp(documentRoot = document) {
     }, 3500);
   }
 
-  function commit(next) {
+  function commit(next, failureMessage = SAVE_FAILED) {
     const restored = restoreState(next, builtInCatalog);
     if (persistent && !saveState(restored)) {
-      notice(SAVE_FAILED);
+      notice(failureMessage);
       return false;
     }
     state = restored;
@@ -431,8 +434,108 @@ export function mountApp(documentRoot = document) {
     updateProductPreview();
   }
 
+  function confirmBackup() {
+    if (savingBackup) return;
+    if (!activeModal) returnFocus = documentRoot.activeElement;
+    activeModal = { mode: 'backup' };
+    modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop"><section class="modal image-modal" role="dialog" aria-modal="true" aria-labelledby="backup-save-title">
+      <button class="modal-close" type="button" data-action="close" aria-label="Close">×</button>
+      <div class="modal-body"><h2 id="backup-save-title">Save backup?</h2>
+        <label>File name<input id="backup-name" type="text" maxlength="180" autocomplete="off" spellcheck="false" enterkeyhint="done"></label>
+        <div class="backup-save-actions"><button class="button" type="button" data-action="save-backup">Save</button>
+        <button class="button button-secondary" type="button" data-action="close">Cancel</button></div>
+      </div></section></div>`;
+    documentRoot.body.classList.add('has-modal');
+    const input = documentRoot.getElementById('backup-name');
+    input.value = `Gunters_Forge_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    input.focus();
+  }
+
+  async function exportBackup() {
+    if (savingBackup || activeModal?.mode !== 'backup') return;
+    let name = documentRoot.getElementById('backup-name').value.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 180);
+    if (!name) { documentRoot.getElementById('backup-name').focus(); return; }
+    if (!/\.json$/i.test(name)) name += '.json';
+    savingBackup = true;
+    let writable = null;
+    try {
+      const content = createBackup(state, builtInCatalog);
+      if (new TextEncoder().encode(content).length > MAX_BACKUP_BYTES) {
+        notice('This backup exceeds the 10 MB restore limit. No file was exported.');
+        return;
+      }
+      if (typeof globalThis.showSaveFilePicker === 'function') {
+        const file = await globalThis.showSaveFilePicker({
+          suggestedName: name,
+          types: [{ description: 'JSON backup', accept: { 'application/json': ['.json'] } }],
+        });
+        writable = await file.createWritable();
+        await writable.write(content);
+        await writable.close();
+        writable = null;
+        closeModal();
+        notice('Backup saved.');
+        return;
+      }
+      const file = new File([content], name, { type: 'application/json' });
+      if (globalThis.navigator?.canShare?.({ files: [file] }) && typeof globalThis.navigator.share === 'function') {
+        try {
+          await globalThis.navigator.share({ files: [file] });
+          closeModal();
+          notice('Backup handed to your device. Save it using the system menu.');
+          return;
+        } catch (error) {
+          if (error.name === 'AbortError') return;
+        }
+      }
+      const url = URL.createObjectURL(file);
+      const link = documentRoot.createElement('a');
+      link.href = url;
+      link.download = name;
+      documentRoot.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      closeModal();
+      notice('Download started. Your browser controls the save location.');
+    } catch (error) {
+      if (writable) {
+        try { await writable.abort(); } catch {}
+      }
+      if (error.name !== 'AbortError') notice('Could not save the backup. Please try again.');
+    } finally {
+      savingBackup = false;
+    }
+  }
+
+  async function chooseBackup(input) {
+    const request = ++backupRead;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > MAX_BACKUP_BYTES) {
+      notice('Choose a backup of 10 MB or smaller.');
+      return;
+    }
+    try {
+      const result = parseBackup(await file.text(), builtInCatalog);
+      if (request !== backupRead) return;
+      if (result.error) { notice(result.error); return; }
+      if (!globalThis.confirm?.('Restore this backup? This replaces all current browser data.')) return;
+      if (!commit(result.state, 'Gunter could not save this backup in your browser (storage is full or blocked). Current data was kept.')) return;
+      backupRead += 1;
+      closeModal();
+      Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false, showDelivered: false });
+      render();
+      notice('Backup restored.');
+    } catch {
+      if (request === backupRead) notice('Could not read the backup. Nothing was changed.');
+    }
+  }
+
   function resetDemo() {
     if (globalThis.confirm && !globalThis.confirm('Clear all orders, the satchel and saved items in this browser?')) return;
+    backupRead += 1;
     resetState();
     state = makeState();
     catalog = [...builtInCatalog];
@@ -444,6 +547,16 @@ export function mountApp(documentRoot = document) {
 
   function handleAction(action, id, button, event) {
     switch (action) {
+      case 'export-backup':
+        confirmBackup();
+        return;
+      case 'save-backup':
+        exportBackup();
+        return;
+      case 'restore-backup':
+        backupRead += 1;
+        documentRoot.getElementById('backup-file').click();
+        return;
       case 'backdrop':
         if (event.target === button) closeModal();
         return;
@@ -565,6 +678,7 @@ export function mountApp(documentRoot = document) {
 
   documentRoot.addEventListener('change', (event) => {
     const el = event.target;
+    if (el.id === 'backup-file') { chooseBackup(el); return; }
     if (el.matches('#recycle-panel input[name="recycle"]')) {
       ui.recycle = el.checked;
       const extra = documentRoot.querySelector('#recycle-panel .recycle-extra');
@@ -644,6 +758,11 @@ export function mountApp(documentRoot = document) {
 
   // keyboard controls. 
   documentRoot.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && event.target.id === 'backup-name') {
+      event.preventDefault();
+      exportBackup();
+      return;
+    }
     if (event.key === 'Escape' && event.target.id === 'search' && ui.search) {
       ui.search = '';
       render();
