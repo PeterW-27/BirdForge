@@ -1,0 +1,87 @@
+{
+  "sword-arming": {
+    "source": "ChatGPT image 2.png",
+    "asset": "assets/products/sword-arming.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "sword-longsword": {
+    "source": "ChatGPT image 3.png",
+    "asset": "assets/products/sword-longsword.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "sword-commission": {
+    "source": "ChatGPT image 4.png",
+    "asset": "assets/products/sword-commission.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "plate-heavy": {
+    "source": "ChatGPT image 5.png",
+    "asset": "assets/products/plate-heavy.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "armor-commission": {
+    "source": "ChatGPT image 6.png",
+    "asset": "assets/products/armor-commission.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "mail-short": {
+    "source": "ChatGPT image 7.png",
+    "asset": "assets/products/mail-short.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "mail-hauberk": {
+    "source": "ChatGPT image 8.png",
+    "asset": "assets/products/mail-hauberk.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "pot-small": {
+    "source": "ChatGPT image 9.png",
+    "asset": "assets/products/pot-small.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "cookware-commission": {
+    "source": "ChatGPT image 10.png",
+    "asset": "assets/products/cookware-commission.webp",
+    "width": 1374,
+    "height": 1145
+  },
+  "sword-short": {
+    "source": "individual image 1.png",
+    "asset": "assets/products/sword-short.webp",
+    "width": 1200,
+    "height": 1000
+  },
+  "plate-light": {
+    "source": "individual image 2.png",
+    "asset": "assets/products/plate-light.webp",
+    "width": 1200,
+    "height": 1000
+  },
+  "pot-medium": {
+    "source": "individual image 3.png",
+    "asset": "assets/products/pot-medium.webp",
+    "width": 1200,
+    "height": 1000
+  },
+  "pot-large": {
+    "source": "individual image 4.png",
+    "asset": "assets/products/pot-large.webp",
+    "width": 1200,
+    "height": 1000
+  },
+  "crest": {
+    "source": "image badge.png",
+    "asset": "assets/crest.png",
+    "width": 1254,
+    "height": 1254,
+    "transparent": true
+  }
+}

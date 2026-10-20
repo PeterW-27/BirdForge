@@ -1,0 +1,93 @@
+# AI Usage Disclosure
+
+Project: Gunter's Forge, V1–V5.10  
+Last updated: October 19, 2026
+
+## Scope of assistance
+
+AI tools were used to support the development of Gunter's Forge through code drafting and revisions, troubleshooting, automated testing, and visual assets. The sections below summarize these uses during development.
+
+## Tools and records
+
+- OpenAI ChatGPT and Codex supported code drafting and revisions, interface changes, debugging, build tooling, and automated tests.
+- Anthropic Claude / Claude Code assisted with troubleshooting during V5.6 and V5.7.
+- ChatGPT is also used to generate product images and crest design selected and viewed by the team.
+
+## Uses during development
+
+| Area | Assistance |
+| --- | --- |
+| Code organization and ordering | Drafting and revising code for page structure, cart operations, checkout validation, bulk orders, commissions, repairs, and browser storage. |
+| Workshop workflow | Assistance with queue calculations, work tickets, quotes, status updates, and fictional demo orders. |
+| Search and usability | Search submission, page shortcuts, typo tolerance, ranking, highlighting, category filtering, and mobile layout adjustments. |
+| Visual assets | Generating product images and the crest, integrating team-selected assets, and preparing image files for the application. |
+| Code review and troubleshooting | Reviewing product creation and data validation and helping investigate implementation issues. |
+| Documentation | Assistance with the README file and explanations of existing code. |
+
+## Development record — V1 to V5.10
+
+The earlier prototypes were named Nova Market. The project became Gunter's Forge at V4. Dates are given only where supported by the available project records.
+
+### V1 — Initial prototype
+
+The student prompted OpenAI ChatGPT to build a webpage for a modern online shopping platform. ChatGPT generated a early prototype for a online shopping website based on those requirements. This AI-generated prototype served as the starting point for subsequent development and revisions.
+
+### V2 — Nova Market
+
+ChatGPT reviewed the supplied V1 application and online shopping site requirements, then assisted with producing a responsive storefront using separate HTML, CSS, and JavaScript files. Work included local SVG product illustrations, favorites, cart and checkout validation, order confirmation and tracking, inventory controls, low-stock reporting, browser-local storage, tests, and supporting documentation.
+
+### V3 — Nova Market
+
+ChatGPT assisted with adapting the application to a more specific requirement on the four technology product types: Smartphone, Headphones, Laptop, and Smartwatch. The revision included storefront and administrator components, an inventory-focused Smart Restock feature, automated tests, and requirements documentation.
+
+### V4 — Gunter's Forge
+
+AI assistance supported changing the generic technology shop into a blacksmith storefront set in Mautern. The product catalog, interface, and order terminology were reworked around the forge setting. This version included a forge-themed order workflow, a Supply Ledger, and an optional engraving or custom-request field. Testing and documentation were also revised.
+
+### V5 — Modular workshop foundation
+
+ChatGPT assisted with reorganizing the V4 application into editable data, domain, controller, UI-component, page, and CSS modules. The workshop version introduced ordinary forged goods, custom commissions, independent bulk ordering, iron recycle options, a Forge Board, and individual chronological Work Tickets. Automated tests, a standalone-HTML build tool, and design handoff documentation were prepared. These early workshop behaviors were revised in later versions.
+
+### V5.1 — Shopping interactions
+
+AI-assisted revisions changed ordinary product cards to show Add to Cart before selection and quantity controls afterward, with a separate favorite button. The product-detail layout was adjusted; custom commissions were excluded from bulk ordering and recycling. The iron-collection option was moved into its own cart panel.
+
+### V5.2 — Catalog and production workflow
+
+AI-assisted work refined commission cards and added Commission and Your ♡ catalog filters. Order stages became Placed → Processing → Delivering → Delivered. The Work Tickets rules were revised so completing an individual ticket removes that ticket and completing every ticket in an order advances the order to Delivering. An earlier compatibility mapping for saved statuses was added and later removed.
+
+### V5.3 — Copy placeholders and layout
+
+At the student's request, AI assistance replaced unsolicited promotional text with placeholders, aligned commission buttons at the bottom of product cards, and removed the old-status compatibility code. Functional labels and existing order behavior were retained.
+
+### V5.4 — Repair orders
+
+ChatGPT assisted with adding a separate Repairs page for repairing old ironware. Repair requests gained free-text item and damage fields, an optional image, a separate order type, and stages for Awaiting Drop-off and Assessing. Repair orders were connected to the order history, Forge Board, and Work Tickets.
+
+### V5.5 — Commission assessment and repair layout
+
+AI-assisted changes added an Assessing stage to custom commissions while keeping the ordinary and repair workflows separate. The repair page was titled Ironware Repair, and its item-information and contact-details fields were displayed in separate panels.
+
+### V5.6 — Queue, quotes, reliability, and interface
+
+Claude Code and ChatGPT assisted during this development period. The version added customer queue positions, shared queue numbers on Work Tickets, quote entry for commissions and repairs, short sequential order numbers, safer handling of failed browser-storage saves, cross-tab queue updates, form validation improvements, and navigation changes. Product descriptions, themed copy, demo tools, and automated tests were also expanded.
+
+### V5.7 — Search and filtering
+
+Claude Code assisted during V5.7. Documented changes included a dedicated search-results view, Enter/button submission, typo-tolerant matching, synonyms, result ranking and highlighting, suggested searches, navigation shortcuts to customer pages, and related commission products appearing in category filters. Search tests were added.
+
+### V5.8 — Product management and iron collection
+
+ChatGPT assisted with ensuring category filters displayed related commission products, and removing the iron-recycling option from bulk orders. The former iron-recycling discount was replaced with a collection request: worn-out ironware would be weighed and paid for separately when collected. The Forge Board gained a form for adding ordinary products to the existing categories, with optional images saved in browser-local storage.
+
+### V5.9 and V5.9.1 — Product modal layout
+
+AI-assisted responsive CSS changes made Details and Bulk Order modals vertically stacked when the viewport is taller than it is wide, while retaining a side-by-side layout when the viewport is wider than it is tall. A follow-up revision corrected the portrait image area so pictures use the available width and retain their aspect ratio without large empty side panels.
+
+### V5.10 — Commission workflow and final layout checks
+
+ChatGPT assisted with making commission orders enter Processing automatically when Gunter saves a valid quote during Placed or Assessing. A quote update does not move an order backward from delivery. The commission request modal was changed to an image-above-content layout in both portrait and landscape. A later responsive CSS fix kept the quantity stepper inside narrow product cards. Ordering logic and layout checks were updated.
+
+## Project direction and review
+
+Project requirements and revision priorities were directed by the team. Students feedback identified usability issues, guided requested changes, and informed the selection of visual assets. All the comments were written by the team. 

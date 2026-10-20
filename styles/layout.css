@@ -1,0 +1,19 @@
+.container { width: min(var(--page-max),calc(100% - 36px)); margin: auto; min-height: 65vh; padding: var(--space-6) 0 var(--space-7); }
+.site-header { position: sticky; top: 0; z-index: 30; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
+.header-inner { max-width: var(--page-max); margin: auto; min-height: var(--header-height); padding: 12px 18px; display: flex; align-items: center; gap: var(--space-5); }
+.brand { flex-shrink: 0; display: flex; flex-direction: column; font-size: 20px; font-family: var(--font-heading); font-weight: 800; line-height: 1.25; }
+.brand span { color: var(--color-muted); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; }
+.search-field { flex: 1; max-width: 360px; min-width: 90px; }
+.desktop-nav { margin-left: auto; display: flex; gap: var(--space-2); align-items: center; }
+.desktop-nav button,.mobile-nav button { background: none; border: 0; padding: 10px 12px; color: var(--color-muted); border-radius: var(--radius-sm); font-size: 13px; font-weight: 650; }
+.desktop-nav button.is-active,.mobile-nav button.is-active { color: var(--color-accent); background: var(--color-accent-soft); }
+.mobile-nav { display: none; }
+.site-footer { background: var(--color-surface); border-top: 1px solid var(--color-line); }
+.footer-inner { max-width: var(--page-max); margin: auto; padding: var(--space-6) 18px; }
+.footer-inner p { margin: var(--space-1) 0; color: var(--color-muted); font-size: var(--font-size-small); }
+.split { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.two-column { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(280px,1fr); gap: var(--space-4); align-items: start; }
+.product-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--space-4); }
+.stats-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--space-3); margin-bottom: var(--space-5); }
+.order-list { display: grid; gap: var(--space-4); }
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }

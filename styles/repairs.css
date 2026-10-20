@@ -1,0 +1,10 @@
+.repair-panel{width:100%;max-width:760px;margin:0 auto;display:grid;gap:var(--space-4);}
+.repair-form{width:100%;max-width:760px;margin:0 auto;display:grid;gap:var(--space-4);}
+.repair-form h2{font-size:18px;margin:0;}
+.repair-form p{margin:0;}
+.repair-progress{grid-template-columns:repeat(6,minmax(0,1fr));}
+.commission-progress{grid-template-columns:repeat(5,minmax(0,1fr));}
+.repair-progress li{overflow-wrap:anywhere;}
+@media(max-width:900px){.desktop-nav{gap:2px;}.desktop-nav button{padding:9px 6px;}.header-inner{gap:10px;}}
+@media(max-width:760px){.mobile-nav{grid-template-columns:repeat(6,minmax(0,1fr));}.mobile-nav button{font-size:11px;padding:10px 1px;}.repair-progress{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px;}.commission-progress{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px;}}
+@media(max-width:360px){.mobile-nav button{font-size:10px;}}

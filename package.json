@@ -1,0 +1,14 @@
+{
+  "name": "gunters-forge-v5-10",
+  "version": "5.10.0",
+  "private": true,
+  "type": "module",
+  "description": "Modular medieval blacksmith storefront, commissions, bulk orders and chronological production tickets",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test tests/*.test.js",
+    "build": "python3 tools/build_standalone.py",
+    "test:browser": "python3 tests/browser_smoke.py"
+  },
+  "license": "UNLICENSED"
+}
