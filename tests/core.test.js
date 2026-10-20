@@ -1,8 +1,9 @@
-import {addProduct} from '../src/domain/products.js';
+import {addProduct,removeProduct,productInUse} from '../src/domain/products.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {catalog,groups} from '../src/data/catalog.js';
 import {shopPage} from '../src/ui/pages/shop.js';
+import {PRICE_PATTERN} from '../src/domain/prices.js';
 import {makeState,restoreState,cartCount,totalCents,changeQuantity,placeCartOrder,placeDirectOrder,updateStatus,workTickets,toggleTicket,STATUSES,COMMISSION_STATUSES,statusesFor,orderStats,customerIssue,setQuote} from '../src/domain/core.js';
 const customer={name:'Elena of Mautern',email:'elena@example.com',address:'Fictional town',recycle:'no'};
 const first=catalog.find(p=>p.type==='standard');
@@ -157,3 +158,9 @@ test('invalid commission quote does not change status or price',()=>{
   assert.equal(created.orders[0].status,'Placed');
   assert.equal(created.orders[0].totalCents,null);
 });
+
+test('added products can be removed when no order uses them',()=>{const added=addProduct(makeState(),{name:'Test Iron Hook',group:'Cooking Pot',price:'12.35'});const id=added.product.id;const withExtras={...added.state,cart:{[id]:2},favorites:[id]};const removed=removeProduct(withExtras,id);assert.ok(!removed.error);assert.equal(removed.state.addedProducts.length,0);assert.deepEqual(removed.state.cart,{});assert.deepEqual(removed.state.favorites,[]);});
+test('products used by an order cannot be removed',()=>{const added=addProduct(makeState(),{name:'Test Iron Hook',group:'Cooking Pot',price:'12.35'});const all=[...catalog,added.product];const ordered=placeCartOrder(all,{...added.state,cart:{[added.product.id]:1}},customer,'O-9','2026-10-18T12:00:00Z');assert.ok(productInUse(ordered.state,added.product.id));assert.match(removeProduct(ordered.state,added.product.id).error,/part of an order/);});
+test('built-in catalog products cannot be removed',()=>assert.ok(removeProduct(makeState(),first.id).error));
+test('admin board hides delivered orders until Show delivered is on',async()=>{const {adminPage}=await import('../src/ui/pages/admin.js');const r=place(withCart(),'D-1','2026-10-17T12:00:00Z');const delivered=updateStatus(r.state,'D-1','Delivered').state;assert.ok(!adminPage(delivered,{adminTab:'orders',adminFilter:'All'}).includes('data-order="D-1"'));assert.ok(adminPage(delivered,{adminTab:'orders',adminFilter:'All',showDelivered:true}).includes('data-order="D-1"'));});
+test('quote input pattern rejects prices above 100000',()=>{const pattern=new RegExp('^(?:'+PRICE_PATTERN+')$');for(const ok of ['1','240','99999.99','100000','100000.00'])assert.ok(pattern.test(ok),ok);for(const bad of ['100001','999999','2222222222222','1.234','abc'])assert.ok(!pattern.test(bad),bad);});

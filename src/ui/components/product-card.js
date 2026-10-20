@@ -32,7 +32,7 @@ export function productCard(product, { quantity = 0, saved = false, matched = nu
   if (product.type === 'custom') return commissionCard(product, matched);
   return `<article class="surface product-card" data-product="${text(product.id)}">
     <button type="button" class="product-image" data-action="detail" data-id="${text(product.id)}" aria-label="View details for ${text(product.name)}">
-      ${product.image ? `<img src="${text(product.image)}" alt="${text(product.name)}" loading="lazy">` : ''}
+      ${product.image ? `<img src="${text(product.image)}" alt="${text(product.name)}" loading="lazy">` : `<span class="image-placeholder">${crestImage('placeholder-crest')}<small>No photo yet</small></span>`}
     </button>
     <div class="product-body">
       <h3>${productName(product.name, matched)}</h3>

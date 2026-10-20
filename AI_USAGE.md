@@ -10,8 +10,8 @@ AI tools were used to support the development of Gunter's Forge through code dra
 ## Tools and records
 
 - OpenAI ChatGPT and Codex supported code drafting and revisions, interface changes, debugging, build tooling, and automated tests.
-- Anthropic Claude / Claude Code assisted with troubleshooting during V5.6 and V5.7.
-- ChatGPT is also used to generate product images and crest design selected and viewed by the team.
+- Anthropic Claude / Claude Code assisted with code changes and troubleshooting during V5.6 and V5.7.
+- ChatGPT was also used to generate the product images and the crest design, which were reviewed and selected by the team.
 
 ## Uses during development
 
@@ -30,7 +30,7 @@ The earlier prototypes were named Nova Market. The project became Gunter's Forge
 
 ### V1 — Initial prototype
 
-The student prompted OpenAI ChatGPT to build a webpage for a modern online shopping platform. ChatGPT generated a early prototype for a online shopping website based on those requirements. This AI-generated prototype served as the starting point for subsequent development and revisions.
+The student prompted OpenAI ChatGPT to build a webpage for a modern online shopping platform. ChatGPT generated an early prototype for an online shopping website based on those requirements. This AI-generated prototype served as the starting point for subsequent development and revisions.
 
 ### V2 — Nova Market
 
@@ -88,6 +88,10 @@ AI-assisted responsive CSS changes made Details and Bulk Order modals vertically
 
 ChatGPT assisted with making commission orders enter Processing automatically when Gunter saves a valid quote during Placed or Assessing. A quote update does not move an order backward from delivery. The commission request modal was changed to an image-above-content layout in both portrait and landscape. A later responsive CSS fix kept the quantity stepper inside narrow product cards. Ordering logic and layout checks were updated.
 
+### V5.10.2 — Validation, Forge Board and product tools
+
+Claude Code assisted with this revision. Form errors now appear under the field that needs fixing, and quote prices are checked against the 100000-crown limit before saving. The Forge Board gained a Show delivered option, an example and live preview for new products, and removal of added products that no order uses. Customers and Gunter can open uploaded reference images in a viewer. The tablet header and the phone home screen were made more compact, and short animations were added for dialogs, notices and the satchel count. Automated tests were added for the new rules.
+
 ## Project direction and review
 
-Project requirements and revision priorities were directed by the team. Students feedback identified usability issues, guided requested changes, and informed the selection of visual assets. All the comments were written by the team. 
+Project requirements and revision priorities were directed by the team. Student feedback identified usability issues, guided requested changes, and informed the selection of visual assets. All the comments were written by the team.

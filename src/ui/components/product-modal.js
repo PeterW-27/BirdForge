@@ -30,17 +30,17 @@ function detailBody(product, quantity) {
 function directOrderBody(product, bulk) {
   const custom = product.type === 'custom';
   const intro = bulk ? 'Bulk orders skip the satchel and go straight to Gunter.' : 'Gunter reads your brief, sends a price, then starts forging.';
-  const bulkFields = `<label>Your title or position<input name="title" required minlength="2" maxlength="80" placeholder="Steward, captain, guild master…"></label>
-    <label>Quantity (${MIN_BULK}–${MAX_BULK})<input type="number" name="qty" inputmode="numeric" required min="${MIN_BULK}" max="${MAX_BULK}" step="1" value="${MIN_BULK}"></label>
+  const bulkFields = `<label>Your title or position<input name="title" required minlength="2" maxlength="80" placeholder="Steward, captain, guild master…" data-error="Enter your title or position (2–80 characters)."></label>
+    <label>Quantity (${MIN_BULK}–${MAX_BULK})<input type="number" name="qty" inputmode="numeric" required min="${MIN_BULK}" max="${MAX_BULK}" step="1" value="${MIN_BULK}" data-error="Bulk quantity must be a whole number from 10 to 10000."></label>
 `;
-  const customFields = `<label>Describe your design<textarea name="description" required minlength="10" maxlength="1600" rows="5" placeholder="Size, look, symbols, how you will use it…"></textarea></label>
+  const customFields = `<label>Describe your design<textarea name="description" required minlength="10" maxlength="1600" rows="5" placeholder="Size, look, symbols, how you will use it…" data-error="Describe the custom work you want (10–1600 characters)."></textarea></label>
     <label>Reference sketch (optional · PNG, JPG or WebP under 350 KB)<input name="reference" type="file" accept="image/png,image/jpeg,image/webp"></label>`;
   return `<p class="eyebrow">${bulk ? 'Bulk order' : 'Custom commission'}</p>
     <h2 id="modal-title">${text(product.name)}</h2>
     <p>${custom ? 'Price quoted after Gunter reviews your design.' : `${price(product.priceCents)} each`}</p>
     <p class="muted">${intro}</p>
     ${custom ? specList(product) : `<p class="direct-price-preview" id="direct-estimate" aria-live="polite">Estimated total: ${price(product.priceCents * MIN_BULK)}</p>`}
-    <form id="direct-order" data-id="${text(product.id)}" data-mode="${bulk ? 'bulk' : 'custom'}">
+    <form id="direct-order" data-id="${text(product.id)}" data-mode="${bulk ? 'bulk' : 'custom'}" novalidate>
       ${bulk ? bulkFields : '<input type="hidden" name="qty" value="1">'}
       ${customerFields()}
       ${custom ? customFields : ''}
@@ -48,6 +48,17 @@ function directOrderBody(product, bulk) {
       <p class="form-error" role="alert" hidden></p>
       <button class="button button-wide" type="submit">${custom ? 'Send for a quote' : 'Place bulk order'}</button>
     </form>`;
+}
+
+export function referenceModal(order) {
+  return `<div class="modal-backdrop" data-action="backdrop"><section class="modal surface image-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button class="modal-close" data-action="close" type="button" aria-label="Close">×</button>
+    <div class="modal-body">
+      <p class="eyebrow">Order ${text(order.id)}</p>
+      <h2 id="modal-title">Reference image</h2>
+      <img class="reference-full" src="${text(order.referenceImage)}" alt="Reference image sent with order ${text(order.id)}">
+    </div>
+  </section></div>`;
 }
 
 // handling clicks on normal or commission cards

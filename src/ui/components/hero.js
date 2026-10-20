@@ -12,8 +12,8 @@ export function hero() {
     </div>
   </div>${crestImage('hero-crest')}</section>
   <ol class="how-it-works" aria-label="How ordering works">
-    <li><b>1</b><span><strong>Choose</strong> goods, or ask for a custom piece or a repair.</span></li>
-    <li><b>2</b><span><strong>Gunter forges</strong> orders in the order they arrive.</span></li>
-    <li><b>3</b><span><strong>Track</strong> your place in line under My Orders.</span></li>
+    <li><b>1</b><span><strong>Choose</strong> <span class="step-more">goods, or ask for a custom piece or a repair.</span></span></li>
+    <li><b>2</b><span><strong>Gunter forges</strong> <span class="step-more">orders in the order they arrive.</span></span></li>
+    <li><b>3</b><span><strong>Track</strong> <span class="step-more">your place in line under My Orders.</span></span></li>
   </ol>`;
 }

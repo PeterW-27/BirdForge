@@ -1,7 +1,10 @@
 import { catalog, groups } from '../../data/catalog.js';
-import { orderStats, statusesFor, queueInfo, isQuotedType, ORDER_TYPES } from '../../domain/core.js';
+import { orderStats, statusesFor, queueInfo, isQuotedType, parseCrowns, ORDER_TYPES } from '../../domain/core.js';
+import { productInUse } from '../../domain/products.js';
+import { PRICE_PATTERN, PRICE_ERROR } from '../../domain/prices.js';
 import { isSampleOrder } from '../../data/samples.js';
-import { heading, emptyState, text, price, statusBadge, extensionPanel, typeLabel } from '../components/shared.js';
+import { heading, emptyState, text, price, statusBadge, extensionPanel, typeLabel, referenceButton } from '../components/shared.js';
+import { productCard } from '../components/product-card.js';
 
 // stats for forge board
 function statsPanel(state) {
@@ -20,9 +23,9 @@ function statsPanel(state) {
 function quoteForm(order) {
   if (!isQuotedType(order.type)) return '';
   const current = order.totalCents === null ? '' : (order.totalCents / 100).toFixed(2);
-  return `<form class="quote-form" data-id="${text(order.id)}">
+  return `<form class="quote-form" data-id="${text(order.id)}" novalidate>
     <label>${order.totalCents === null ? 'Set a price (crowns)' : 'Change price (crowns)'}
-      <input name="quote" inputmode="decimal" required pattern="\\d{1,6}(\\.\\d{1,2})?" value="${current}" placeholder="e.g. 240">
+      <input name="quote" inputmode="decimal" required maxlength="9" pattern="${PRICE_PATTERN}" value="${current}" placeholder="e.g. 240" data-error="${PRICE_ERROR}">
     </label>
     <button class="button button-secondary" type="submit">${order.totalCents === null ? 'Send quote' : 'Update quote'}</button>
   </form>`;
@@ -40,6 +43,7 @@ function adminOrder(state, order) {
     order.description ? `<p>${order.type === 'repair' ? 'Damage description' : 'Custom brief'}: ${text(order.description)}</p>` : '',
     order.notes ? `<p>Notes: ${text(order.notes)}</p>` : '',
     order.recycle === 'yes' ? `<p>Recycle Your Iron Tools: ${text(order.recycleDetails || 'Yes')}</p>` : '',
+    referenceButton(order),
   ].join('');
   const total = order.totalCents === null ? '<span class="muted">Quote pending</span>' : `<strong>${price(order.totalCents)}</strong>`;
   const options = statusesFor(order.type).map((s) => `<option value="${text(s)}" ${s === order.status ? 'selected' : ''}>${text(s)}</option>`).join('');
@@ -51,32 +55,81 @@ function adminOrder(state, order) {
   </article>`;
 }
 
-function orderList(state, filter) {
-  const orders = [...state.orders].reverse().filter((order) => filter === 'All' || order.type === filter);
+function emptyOrders(deliveredCount, showDelivered) {
+  if (deliveredCount && !showDelivered) {
+    const done = deliveredCount === 1 ? '1 matching order is delivered' : `${deliveredCount} matching orders are delivered`;
+    return emptyState('No open orders', `${done}. Turn on Show delivered to see finished work.`, 'show-delivered', 'Show delivered orders');
+  }
+  return emptyState('No matching orders', 'Orders appear here as soon as customers send them.');
+}
+
+function orderList(state, ui) {
+  const filter = ui.adminFilter || 'All';
+  const showDelivered = Boolean(ui.showDelivered);
+  const matching = [...state.orders].reverse().filter((order) => filter === 'All' || order.type === filter);
+  const deliveredCount = matching.filter((order) => order.status === 'Delivered').length;
+  const orders = showDelivered ? matching : matching.filter((order) => order.status !== 'Delivered');
   const filterOptions = ['All', ...ORDER_TYPES]
     .map((t) => `<option value="${t}" ${filter === t ? 'selected' : ''}>${t === 'All' ? 'All types' : text(typeLabel(t))}</option>`)
     .join('');
+  const deliveredToggle = `<label class="check-toggle"><input type="checkbox" id="show-delivered" ${showDelivered ? 'checked' : ''}>Show delivered${deliveredCount ? ` (${deliveredCount})` : ''}</label>`;
   return `<section>
-    <div class="split section-heading"><h2>Incoming orders</h2><label>Order type<select id="admin-filter">${filterOptions}</select></label></div>
-    ${orders.length ? `<div class="order-list">${orders.map((order) => adminOrder(state, order)).join('')}</div>` : emptyState('No matching orders', 'Orders appear here as soon as customers send them.')}
+    <div class="section-heading admin-list-heading"><h2>Incoming orders</h2><div class="admin-list-tools"><label>Order type<select id="admin-filter">${filterOptions}</select></label>${deliveredToggle}</div></div>
+    ${orders.length ? `<div class="order-list">${orders.map((order) => adminOrder(state, order)).join('')}</div>` : emptyOrders(deliveredCount, showDelivered)}
   </section>`;
 }
 
-function productForm() {
-  return `<details class="surface admin-product">
+export function productPreview(data = {}, image = '') {
+  const group = groups.includes(data.group) ? data.group : groups[0];
+  const product = {
+    id: 'preview',
+    type: 'standard',
+    name: String(data.name ?? '').trim() || 'New product',
+    group,
+    groups: [group],
+    priceCents: parseCrowns(data.price),
+    short: String(data.short ?? '').trim() || 'The short description appears here.',
+    image: image || '',
+  };
+  return productCard(product);
+}
+
+function addedProductList(state) {
+  const added = state.addedProducts || [];
+  if (!added.length) return '';
+  const rows = added.map((product) => {
+    const used = productInUse(state, product.id);
+    const action = used
+      ? '<span class="muted added-product-lock">In an order</span>'
+      : `<button type="button" class="text-button danger-link" data-action="remove-product" data-id="${text(product.id)}">Remove</button>`;
+    return `<li><span><strong>${text(product.name)}</strong> <span class="muted">· ${text(product.group)} · ${price(product.priceCents)}</span></span>${action}</li>`;
+  }).join('');
+  return `<div class="added-products"><h3>Products you added</h3><ul>${rows}</ul></div>`;
+}
+
+function productForm(state, ui) {
+  return `<details class="surface admin-product" id="add-product-panel" ${ui.productFormOpen ? 'open' : ''}>
     <summary>Add product</summary>
-    <form id="add-product" class="form-fields">
-      <label>Name<input name="name" required minlength="2" maxlength="120"></label>
-      <label>Category<select name="group" required>${groups.map((group) => `<option value="${text(group)}">${text(group)}</option>`).join('')}</select></label>
-      <label>Price (crowns)<input name="price" required inputmode="decimal" pattern="\\d{1,6}(\\.\\d{1,2})?" placeholder="0.00"></label>
-      <label>Size<input name="size" maxlength="80"></label>
-      <label>Description<textarea name="short" maxlength="240" rows="2"></textarea></label>
-      <label>Details<textarea name="details" maxlength="1600" rows="3"></textarea></label>
-      <label>Specifications<textarea name="specs" rows="3"></textarea></label>
-      <label>Image (PNG, JPG, WebP; max 350 KB)<input name="image" type="file" accept="image/png,image/jpeg,image/webp"></label>
-      <p class="form-error" role="alert" hidden></p>
-      <button class="button" type="submit">Add product</button>
-    </form>
+    <div class="add-product-layout">
+      <form id="add-product" class="form-fields" novalidate>
+        <p class="form-hint muted">New products join the shop right away as standard items. Not sure what to write? <button type="button" class="text-button" data-action="product-example">Fill in an example</button></p>
+        <label>Name<input name="name" required minlength="2" maxlength="120" placeholder="e.g. Training Sword" data-error="Name must contain 2–120 characters."></label>
+        <label>Category<select name="group" required>${groups.map((group) => `<option value="${text(group)}">${text(group)}</option>`).join('')}</select></label>
+        <label>Price (crowns)<input name="price" required inputmode="decimal" maxlength="9" pattern="${PRICE_PATTERN}" placeholder="e.g. 42.00" data-error="${PRICE_ERROR}"></label>
+        <label><span>Size <small>(optional)</small></span><input name="size" maxlength="80" placeholder="e.g. 80 cm blunt blade"></label>
+        <label><span>Description <small>(optional · shown on the product card)</small></span><textarea name="short" maxlength="240" rows="2" placeholder="e.g. A blunt practice blade for squires and town guards."></textarea></label>
+        <label><span>Details <small>(optional · shown in Details)</small></span><textarea name="details" maxlength="1600" rows="3" placeholder="e.g. Forged with a rounded tip so new fighters can practise safely."></textarea></label>
+        <label><span>Specifications <small>(optional · one per line, up to 12)</small></span><textarea name="specs" rows="3" placeholder="e.g. Blunt edges&#10;Rounded tip&#10;Ash wood grip" data-error="Product fields exceed their limits."></textarea></label>
+        <label><span>Image <small>(optional · PNG, JPG or WebP under 350 KB)</small></span><input name="image" type="file" accept="image/png,image/jpeg,image/webp"></label>
+        <p class="form-error" role="alert" hidden></p>
+        <button class="button" type="submit">Add product</button>
+      </form>
+      <aside class="product-preview-panel" aria-label="Product card preview">
+        <p class="eyebrow">Shop preview</p>
+        <div id="product-preview" class="product-preview" inert>${productPreview()}</div>
+      </aside>
+    </div>
+    ${addedProductList(state)}
   </details>`;
 }
 
@@ -101,7 +154,7 @@ export function adminPage(state, ui, features = [], activeCatalog = catalog) {
   return `${heading("Gunter's workshop", 'Forge Board', 'Every order with customer details, prices and status. Work Tickets shows only the work to do.')}
     ${statsPanel(state)}
     ${tabBar}
-    ${productForm()}
-    ${selected ? extensionPanel(selected, { state, catalog: activeCatalog }) : orderList(state, ui.adminFilter)}
+    ${productForm(state, ui)}
+    ${selected ? extensionPanel(selected, { state, catalog: activeCatalog }) : orderList(state, ui)}
     ${demoTools()}`;
 }

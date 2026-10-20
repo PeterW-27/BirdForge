@@ -1,5 +1,6 @@
 import { REPAIR_STATUSES, REPAIR_TICKET_STATUSES, repairItemIssue } from './repairs.js';
 import { validAddedProduct } from './products.js';
+import { PRICE_ERROR } from './prices.js';
 
 export const STATUSES = Object.freeze(['Placed', 'Processing', 'Delivering', 'Delivered']);
 export const COMMISSION_STATUSES = Object.freeze(['Placed', 'Assessing', 'Processing', 'Delivering', 'Delivered']);
@@ -281,7 +282,7 @@ export function setQuote(state, id, crowns) {
   if (!order) return { error: 'Order not found.' };
   if (!isQuotedType(order.type)) return { error: 'Only custom commissions and repairs need a quote.' };
   const cents = parseCrowns(crowns);
-  if (cents === null || cents <= 0 || cents > MAX_QUOTE_CENTS) return { error: 'Enter a price from 0.01 to 100000 crowns, with at most 2 decimals.' };
+  if (cents === null || cents <= 0 || cents > MAX_QUOTE_CENTS) return { error: PRICE_ERROR };
   return { state: { ...state, orders: state.orders.map((o) => (o.id === id ? { ...o, totalCents: cents, status: o.type === 'custom' && ['Placed', 'Assessing'].includes(o.status) ? 'Processing' : o.status } : o)) } };
 }
 

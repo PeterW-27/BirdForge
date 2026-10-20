@@ -22,6 +22,11 @@ export function heading(eyebrow, title, description = '') {
   </div></header>`;
 }
 
+export function referenceButton(order) {
+  if (!order.referenceImage) return '';
+  return `<button type="button" class="reference-thumb" data-action="view-reference" data-id="${text(order.id)}"><img src="${text(order.referenceImage)}" alt="">View reference image</button>`;
+}
+
 export function emptyState(title, description, action = 'shop', label = 'Browse goods') {
   return `<section class="surface empty-state">
     <h2>${text(title)}</h2>
@@ -101,8 +106,8 @@ export function recyclingFields({ variant = 'cart', enabled = false, details = '
 // form filling fields
 export function customerFields() {
   return `<div class="form-fields">
-    <label>Your name<input name="name" required minlength="2" maxlength="80" placeholder="Elena of Mautern" autocomplete="name"></label>
-    <label>Email<input name="email" required type="email" maxlength="120" placeholder="elena@example.com" autocomplete="email"></label>
+    <label>Your name<input name="name" required minlength="2" maxlength="80" placeholder="Elena of Mautern" autocomplete="name" data-error="Enter your name (2–80 characters)."></label>
+    <label>Email<input name="email" required type="email" maxlength="120" placeholder="elena@example.com" autocomplete="email" data-error="Enter a valid email address, like name@example.com."></label>
     <label>Address or pickup point<input name="address" maxlength="180" placeholder="Mautern, market quarter" autocomplete="street-address"></label>
   </div>`;
 }

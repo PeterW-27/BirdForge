@@ -53,6 +53,12 @@ def make_module(source):
 make_module(ENTRY)
 script = "const modules = Object.create(null);\n" + '\n'.join(f'modules[{name!r}] = {expression};' for name, expression in modules.items())
 html = (ROOT / 'index.html').read_text(encoding='utf-8')
+icon_path = ROOT / 'assets' / 'forge-anvil-navy-v3.ico'
+icon_base64 = base64.b64encode(icon_path.read_bytes()).decode('ascii')
+html = html.replace(
+    'href="assets/forge-anvil-navy-v3.ico"',
+    f'href="data:image/x-icon;base64,{icon_base64}"'
+)
 for link in re.findall(r'<link rel="stylesheet" href="([^"]+)">', html):
     content = (ROOT / link).read_text(encoding='utf-8')
     html = html.replace(f'<link rel="stylesheet" href="{link}">', '<style>\n'+content+'\n</style>')

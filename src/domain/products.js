@@ -1,4 +1,5 @@
 import { groups } from '../data/catalog.js';
+import { PRICE_ERROR } from './prices.js';
 
 const maxImageLength = 510000;
 const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,/;
@@ -31,10 +32,10 @@ export function addProduct(state, input, image = null) {
   const specs = String(input.specs ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (name.length < 2 || name.length > 120) return { error: 'Name must contain 2–120 characters.' };
   if (!groups.includes(group)) return { error: 'Select a category.' };
-  if (!/^\d{1,6}(?:\.\d{1,2})?$/.test(value)) return { error: 'Enter a price in crowns.' };
+  if (!/^\d{1,6}(?:\.\d{1,2})?$/.test(value)) return { error: PRICE_ERROR };
   const [whole, fraction = ''] = value.split('.');
   const priceCents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
-  if (priceCents < 1 || priceCents > 10000000) return { error: 'Enter a price from 0.01 to 100000 crowns.' };
+  if (priceCents < 1 || priceCents > 10000000) return { error: PRICE_ERROR };
   if (size.length > 80 || short.length > 240 || details.length > 1600 || specs.length > 12 || specs.some((spec) => spec.length > 120)) return { error: 'Product fields exceed their limits.' };
   const ids = (state.addedProducts || []).map((product) => Number(product.id.slice(8))).filter(Number.isFinite);
   const id = `product-${Math.max(0, ...ids) + 1}`;
@@ -42,4 +43,31 @@ export function addProduct(state, input, image = null) {
   if (!validAddedProduct(product)) return { error: 'Invalid product data.' };
   if ((state.addedProducts || []).length >= 100) return { error: 'Product limit reached.' };
   return { product, state: { ...state, addedProducts: [...(state.addedProducts || []), product] } };
+}
+
+export const EXAMPLE_PRODUCT = Object.freeze({
+  name: 'Training Sword',
+  group: 'Sword',
+  price: '42.00',
+  size: '80 cm blunt blade',
+  short: 'A blunt practice blade for squires and town guards.',
+  details: 'Forged with a rounded tip and dulled edges so new fighters can practise safely in the castle yard.',
+  specs: 'Blunt edges\nRounded tip\nAsh wood grip',
+});
+
+export function productInUse(state, id) {
+  return (state.orders || []).some((order) => order.items.some((line) => line.id === id));
+}
+
+export function removeProduct(state, id) {
+  const added = state.addedProducts || [];
+  const product = added.find((item) => item.id === id);
+  if (!product) return { error: 'Only products added on the Forge Board can be removed.' };
+  if (productInUse(state, id)) return { error: `${product.name} is part of an order, so it cannot be removed.` };
+  const cart = { ...state.cart };
+  delete cart[id];
+  return {
+    product,
+    state: { ...state, addedProducts: added.filter((item) => item.id !== id), cart, favorites: (state.favorites || []).filter((item) => item !== id) },
+  };
 }

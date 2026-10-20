@@ -1,15 +1,15 @@
 import { builtInCatalog } from '../data/catalog.js';
-import { addProduct } from '../domain/products.js';
+import { addProduct, removeProduct, EXAMPLE_PRODUCT } from '../domain/products.js';
 import { loadState, saveState, resetState, storageAvailable, STORAGE_KEY } from '../data/storage.js';
 import { addSampleOrders } from '../data/samples.js';
 import { makeState, changeQuantity, cartCount, totalCents, money, nextOrderId, placeCartOrder, placeDirectOrder, placeRepairOrder, updateStatus, setQuote, toggleTicket, restoreState, queueInfo, MIN_BULK, MAX_BULK } from '../domain/core.js';
 import { pageForQuery } from '../domain/search.js';
 import { header, footer, mobileNav, SMITH_VIEWS } from '../ui/components/site-shell.js';
-import { productModal } from '../ui/components/product-modal.js';
+import { productModal, referenceModal } from '../ui/components/product-modal.js';
 import { shopPage } from '../ui/pages/shop.js';
 import { cartPage } from '../ui/pages/cart.js';
 import { ordersPage } from '../ui/pages/orders.js';
-import { adminPage } from '../ui/pages/admin.js';
+import { adminPage, productPreview } from '../ui/pages/admin.js';
 import { ticketsPage } from '../ui/pages/tickets.js';
 import { repairsPage } from '../ui/pages/repairs.js';
 import { featuresFor, getFeature } from '../extensions/registry.js';
@@ -33,10 +33,12 @@ export function mountApp(documentRoot = document) {
   const persistent = storageAvailable();
   let state = loadState(builtInCatalog);
   let catalog = [...builtInCatalog, ...state.addedProducts];
-  const ui = { view: 'shop', search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', lastOrder: null, recycle: false, recycleDetails: '' };
+  const ui = { view: 'shop', search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', showDelivered: false, productFormOpen: false, lastOrder: null, recycle: false, recycleDetails: '' };
   let activeModal = null;
   let returnFocus = null;
   let toastTimer = null;
+  let shownCartCount = null;
+  let previewImageUrl = null;
 
   function notice(message) {
     toastRoot.textContent = message;
@@ -65,7 +67,13 @@ export function mountApp(documentRoot = document) {
     return '<p class="storage-banner" role="status">This browser is not saving data, so orders will disappear when you close the page.</p>';
   }
 
+  function releasePreviewImage() {
+    if (previewImageUrl) globalThis.URL?.revokeObjectURL?.(previewImageUrl);
+    previewImageUrl = null;
+  }
+
   function render() {
+    releasePreviewImage();
     const pages = {
       shop: () => shopPage(state, ui, featuresFor('shop'), catalog),
       cart: () => cartPage(state, ui, catalog),
@@ -76,9 +84,16 @@ export function mountApp(documentRoot = document) {
     };
     main.innerHTML = storageBanner() + (pages[ui.view] || pages.shop)();
     const count = cartCount(catalog, state);
+    const grew = shownCartCount !== null && count > shownCartCount;
+    shownCartCount = count;
     documentRoot.querySelectorAll('[data-cart-count]').forEach((el) => {
       el.textContent = count;
       el.hidden = count === 0;
+      if (grew) {
+        el.classList.remove('bump');
+        void el.offsetWidth;
+        el.classList.add('bump');
+      }
     });
     documentRoot.querySelectorAll('[data-view]').forEach((button) => {
       const active = button.dataset.view === ui.view && !button.classList.contains('role-switch');
@@ -102,6 +117,7 @@ export function mountApp(documentRoot = document) {
     if (!activeModal) return;
     activeModal = null;
     modalRoot.innerHTML = '';
+    documentRoot.body.classList.remove('has-modal');
     if (returnFocus?.isConnected) returnFocus.focus();
     returnFocus = null;
   }
@@ -122,10 +138,22 @@ export function mountApp(documentRoot = document) {
     if (!activeModal) returnFocus = documentRoot.activeElement;
     activeModal = { id, mode };
     modalRoot.innerHTML = productModal(product, state.cart[id] || 0, mode);
+    documentRoot.body.classList.add('has-modal');
+    modalRoot.querySelector('.modal-close')?.focus();
+  }
+
+  function openReference(orderId) {
+    const order = state.orders.find((item) => item.id === orderId);
+    if (!order?.referenceImage) return;
+    if (!activeModal) returnFocus = documentRoot.activeElement;
+    activeModal = { id: orderId, mode: 'image' };
+    modalRoot.innerHTML = referenceModal(order);
+    documentRoot.body.classList.add('has-modal');
     modalRoot.querySelector('.modal-close')?.focus();
   }
 
   function changeCart(id, qty) {
+    const before = state.cart[id] || 0;
     const result = changeQuantity(catalog, state, id, qty);
     if (result.error) {
       notice(result.error);
@@ -133,15 +161,65 @@ export function mountApp(documentRoot = document) {
     }
     if (!commit(result.state)) return;
     if (activeModal?.mode === 'detail') openModal(activeModal.id, 'detail');
+    if (before === 0 && qty > 0) notice(`${catalog.find((p) => p.id === id)?.name || 'Item'} added to your satchel.`);
   }
 
-  function showFormError(form, message) {
+  function fieldErrorFor(control) {
+    return control.closest('label')?.querySelector('.field-error') || null;
+  }
+
+  function setFieldError(control, message) {
+    control.setAttribute('aria-invalid', 'true');
+    let box = fieldErrorFor(control);
+    if (!box) {
+      box = documentRoot.createElement('span');
+      box.className = 'field-error';
+      box.id = `${control.form?.id || control.form?.dataset.id || 'form'}-${control.name}-error`;
+      (control.closest('label') || control.parentElement).append(box);
+      control.setAttribute('aria-describedby', box.id);
+    }
+    box.textContent = message;
+  }
+
+  function clearFieldError(control) {
+    control.removeAttribute('aria-invalid');
+    control.removeAttribute('aria-describedby');
+    fieldErrorFor(control)?.remove();
+  }
+
+  function clearFormErrors(form) {
+    form.querySelectorAll('[aria-invalid]').forEach(clearFieldError);
+    clearFormError(form);
+  }
+
+  function firstInvalidControl(form) {
+    return [...form.elements].find((el) => el.willValidate && !el.validity.valid) || null;
+  }
+
+  function showFormError(form, message, control = null) {
+    const target = control || [...(form?.elements || [])].find((el) => el.dataset?.error === message);
+    if (target) {
+      setFieldError(target, message);
+      target.focus({ preventScroll: true });
+      target.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+      return;
+    }
     const box = form?.querySelector('.form-error');
     if (box) {
       box.textContent = message;
       box.hidden = false;
+      box.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+      return;
     }
     notice(message);
+  }
+
+  function validateForm(form) {
+    clearFormErrors(form);
+    const invalid = firstInvalidControl(form);
+    if (!invalid) return true;
+    showFormError(form, invalid.dataset.error || invalid.validationMessage, invalid);
+    return false;
   }
 
   function clearFormError(form) {
@@ -179,10 +257,17 @@ export function mountApp(documentRoot = document) {
     finishOrder(placeCartOrder(catalog, state, data, nextOrderId(state.orders), new Date().toISOString()), form);
   }
 
+  function imageIssue(file) {
+    if (!file || !file.size) return '';
+    if (!IMAGE_TYPES.includes(file.type)) return 'The photo must be a PNG, JPG or WebP image.';
+    if (file.size > MAX_IMAGE_BYTES) return 'The photo must be smaller than 350 KB.';
+    return '';
+  }
+
   async function readImage(file) {
     if (!file || !file.size) return null;
-    if (!IMAGE_TYPES.includes(file.type)) throw Error('The photo must be a PNG, JPG or WebP image.');
-    if (file.size > MAX_IMAGE_BYTES) throw Error('The photo must be smaller than 350 KB.');
+    const issue = imageIssue(file);
+    if (issue) throw Error(issue);
     const encoded = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
@@ -203,7 +288,7 @@ export function mountApp(documentRoot = document) {
       const image = await readImage(data.reference);
       finishOrder(placeOrder(data, image), form);
     } catch (error) {
-      showFormError(form, error.message || 'Unable to send the photo.');
+      showFormError(form, error.message || 'Unable to send the photo.', form.elements.reference || null);
     } finally {
       if (button.isConnected) button.disabled = false;
     }
@@ -234,10 +319,11 @@ export function mountApp(documentRoot = document) {
         showFormError(form, result.error);
         return;
       }
-      if (commit(result.state)) notice('Product added.');
+      ui.productFormOpen = true;
+      if (commit(result.state)) notice(`${result.product.name} added to ${result.product.group}. It is now in the shop.`);
       else showFormError(form, SAVE_FAILED);
     } catch (error) {
-      showFormError(form, error.message || 'Unable to read the image.');
+      showFormError(form, error.message || 'Unable to read the image.', form.elements.image || null);
     } finally {
       if (button.isConnected) button.disabled = false;
     }
@@ -246,7 +332,7 @@ export function mountApp(documentRoot = document) {
   function submitQuote(form) {
     const result = setQuote(state, form.dataset.id, new FormData(form).get('quote'));
     if (result.error) {
-      notice(result.error);
+      showFormError(form, result.error);
       return;
     }
     if (commit(result.state)) notice(`Quote saved for ${form.dataset.id}. The customer can see it under My Orders.`);
@@ -301,13 +387,57 @@ export function mountApp(documentRoot = document) {
     showResults();
   }
 
+  function updateProductPreview() {
+    const form = documentRoot.getElementById('add-product');
+    const box = documentRoot.getElementById('product-preview');
+    if (!form || !box) return;
+    box.innerHTML = productPreview(Object.fromEntries(new FormData(form).entries()), previewImageUrl);
+  }
+
+  function fillProductExample() {
+    const form = documentRoot.getElementById('add-product');
+    if (!form) return;
+    for (const [name, value] of Object.entries(EXAMPLE_PRODUCT)) {
+      if (form.elements[name]) form.elements[name].value = value;
+    }
+    clearFormErrors(form);
+    updateProductPreview();
+    form.elements.name.focus();
+  }
+
+  function removeAddedProduct(id) {
+    const product = state.addedProducts.find((item) => item.id === id);
+    if (!product) return;
+    if (globalThis.confirm && !globalThis.confirm(`Remove ${product.name} from the shop?`)) return;
+    const result = removeProduct(state, id);
+    if (result.error) {
+      notice(result.error);
+      return;
+    }
+    if (commit(result.state)) notice(`${product.name} was removed from the shop.`);
+  }
+
+  function checkFileInput(input) {
+    clearFieldError(input);
+    const file = input.files?.[0];
+    const issue = imageIssue(file);
+    if (issue) {
+      setFieldError(input, issue);
+      input.value = '';
+    }
+    if (input.form?.id !== 'add-product') return;
+    releasePreviewImage();
+    if (!issue && file?.size && globalThis.URL?.createObjectURL) previewImageUrl = URL.createObjectURL(file);
+    updateProductPreview();
+  }
+
   function resetDemo() {
     if (globalThis.confirm && !globalThis.confirm('Clear all orders, the satchel and saved items in this browser?')) return;
     resetState();
     state = makeState();
     catalog = [...builtInCatalog];
     if (persistent) saveState(state);
-    Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false });
+    Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false, showDelivered: false });
     render();
     notice('Demo data cleared.');
   }
@@ -395,6 +525,19 @@ export function mountApp(documentRoot = document) {
       case 'reset-demo':
         resetDemo();
         return;
+      case 'view-reference':
+        openReference(id);
+        return;
+      case 'show-delivered':
+        ui.showDelivered = true;
+        render();
+        return;
+      case 'product-example':
+        fillProductExample();
+        return;
+      case 'remove-product':
+        removeAddedProduct(id);
+        return;
       default: {
         const feature = getFeature(button.closest('[data-extension]')?.dataset.extension);
         if (!feature?.onAction) return;
@@ -439,6 +582,16 @@ export function mountApp(documentRoot = document) {
       render();
       return;
     }
+    if (el.id === 'show-delivered') {
+      ui.showDelivered = el.checked;
+      render();
+      return;
+    }
+    if (el.matches('input[type="file"]')) {
+      checkFileInput(el);
+      return;
+    }
+    if (el.matches('#add-product select')) updateProductPreview();
     if (el.matches('select[data-action="status"]')) {
       const result = updateStatus(state, el.dataset.id, el.value);
       if (result.error) {
@@ -457,19 +610,18 @@ export function mountApp(documentRoot = document) {
       return;
     }
     const handlers = { checkout: submitCart, 'direct-order': submitDirect, 'repair-order': submitRepair, 'add-product': submitProduct };
-    if (handlers[form.id]) {
-      event.preventDefault();
-      handlers[form.id](form);
-      return;
-    }
-    if (form.classList.contains('quote-form')) {
-      event.preventDefault();
-      submitQuote(form);
-    }
+    const handler = handlers[form.id] || (form.classList.contains('quote-form') ? submitQuote : null);
+    if (!handler) return;
+    event.preventDefault();
+    if (!validateForm(form)) return;
+    handler(form);
   });
 
   documentRoot.addEventListener('input', (event) => {
     const el = event.target;
+    if (el.form && el.getAttribute('aria-invalid')) clearFieldError(el);
+    if (el.form) clearFormError(el.form);
+    if (el.closest?.('#add-product')) updateProductPreview();
     if (el.matches('#recycle-panel [name="recycleDetails"]')) ui.recycleDetails = el.value;
     if (el.matches('#direct-order [name="qty"]')) updateEstimates();
     if (el.id === 'search') {
@@ -517,6 +669,10 @@ export function mountApp(documentRoot = document) {
       }
     }
   });
+
+  documentRoot.addEventListener('toggle', (event) => {
+    if (event.target.id === 'add-product-panel') ui.productFormOpen = event.target.open;
+  }, true);
 
   globalThis.addEventListener?.('storage', (event) => {
     if (event.key !== STORAGE_KEY && event.key !== null) return;

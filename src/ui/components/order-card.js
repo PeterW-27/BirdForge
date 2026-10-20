@@ -1,5 +1,5 @@
 import { isQuotedType } from '../../domain/core.js';
-import { text, price, progress, statusBadge, crestImage, typeLabel, queuePanel } from './shared.js';
+import { text, price, progress, statusBadge, crestImage, typeLabel, queuePanel, referenceButton } from './shared.js';
 
 // show total price and discription on order cards, show quote tag on repair and commission orders
 function priceLine(order) {
@@ -16,9 +16,7 @@ function detailLines(order) {
   if (order.description) lines.push(`<p><strong>${order.type === 'repair' ? 'Damage description' : 'Custom description'}:</strong> ${text(order.description)}</p>`);
   if (order.notes) lines.push(`<p><strong>Notes:</strong> ${text(order.notes)}</p>`);
   if (order.recycle === 'yes') lines.push(`<p><strong>Recycle Your Iron Tools:</strong> ${text(order.recycleDetails || 'Requested')}</p>`);
-  if (order.referenceImage) {
-    lines.push(`<a href="${text(order.referenceImage)}" target="_blank" rel="noopener" class="reference-thumb"><img src="${text(order.referenceImage)}" alt="Uploaded reference image">View reference image</a>`);
-  }
+  if (order.referenceImage) lines.push(referenceButton(order));
   return lines.join('');
 }
 

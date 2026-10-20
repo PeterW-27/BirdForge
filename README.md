@@ -1,6 +1,5 @@
-# Gunter's Forge
+# Gunter's Forge Version 5.10
 
-Version 5.10  
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
 ## Project overview
@@ -15,9 +14,7 @@ The app is written in HTML, CSS, and JavaScript, with layouts for phones and des
 
 ### Open the standalone version
 
-Extract the project ZIP and open `dist/Gunters_Forge_V5_10_Standalone.html` in a modern browser. This file includes the code, styles, and images, so it works offline without installing anything else.
-
-Use the same browser and file location to keep working with the same saved demo data.
+Extract the project ZIP and open `dist/Gunters_Forge_V5_10_Standalone.html` in a modern browser. This file includes the code, styles, and images, so it works offline without installing anything else. Use the same browser and file location to keep working with the same saved demo data.
 
 ### Run the source version
 
@@ -73,13 +70,15 @@ Commissions and repairs can include a PNG, JPEG, or WebP reference image up to t
 
 ### Work through the queue
 
-Open Forge Board from the desktop navigation or Gunter ⚒ on the phone's bottom bar. Here you can review orders, filter by type, enter quotes, and change statuses.
+Open Forge Board from the desktop navigation or Gunter on the phone's bottom bar. Here you can review orders, filter by type, enter quotes, and change statuses.
 
 Open Work Tickets to see unfinished jobs. One ticket represents an order line, which may include several units of the same product. Mark complete removes that ticket; once all tickets in an order are finished, the order moves to Delivering. Queue positions in My Orders update as work is completed.
 
 Standard and bulk orders have tickets in Placed or Processing. Commissions and repairs appear only in Processing. Quoting a commission in Placed or Assessing moves it to Processing automatically.
 
 Forge Board also lets you add standard products to the four categories, add fictional sample orders, or clear demo data. Sample orders contribute to the queue but are hidden from My Orders. Clearing demo data removes saved orders, added products, favorites, and satchel contents after confirmation.
+
+Delivered orders are hidden from Forge Board by default; turn on Show delivered to see them again. When adding a product, Fill in an example shows a sample entry, and the shop preview shows how the new card will look. Products added on Forge Board can be removed if no order uses them, and uploaded reference images open in a viewer for both the customer and Gunter.
 
 ## Feature list
 
