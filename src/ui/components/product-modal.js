@@ -1,3 +1,4 @@
+import { creditCheckbox } from './checkout-form.js';
 import { text, price, customerFields } from './shared.js';
 import { quantityPicker } from './purchase-controls.js';
 import { MIN_BULK, MAX_BULK } from '../../domain/core.js';
@@ -27,7 +28,7 @@ function detailBody(product, quantity) {
     </div>`;
 }
 
-function directOrderBody(product, bulk) {
+function directOrderBody(product, bulk, state) {
   const custom = product.type === 'custom';
   const intro = bulk ? 'Bulk orders skip the satchel and go straight to Gunter.' : 'Gunter reads your brief, sends a price, then starts forging.';
   const bulkFields = `<label>Your title or position<input name="title" required minlength="2" maxlength="80" placeholder="Steward, captain, guild master…" data-error="Enter your title or position (2–80 characters)."></label>
@@ -42,6 +43,7 @@ function directOrderBody(product, bulk) {
     ${custom ? specList(product) : `<p class="direct-price-preview" id="direct-estimate" aria-live="polite">Estimated total: ${price(product.priceCents * MIN_BULK)}</p>`}
     <form id="direct-order" data-id="${text(product.id)}" data-mode="${bulk ? 'bulk' : 'custom'}" novalidate>
       ${bulk ? bulkFields : '<input type="hidden" name="qty" value="1">'}
+      <div id="direct-credit">${bulk ? creditCheckbox(state, product.priceCents * MIN_BULK) : ''}</div>
       ${customerFields()}
       ${custom ? customFields : ''}
       <label>Notes for Gunter (optional)<textarea name="notes" maxlength="500" rows="3"></textarea></label>
@@ -62,9 +64,9 @@ export function referenceModal(order) {
 }
 
 // handling clicks on normal or commission cards
-export function productModal(product, quantity = 0, mode = 'detail') {
+export function productModal(product, quantity = 0, mode = 'detail', state = {}) {
   const custom = product.type === 'custom';
   if (mode === 'detail' && !custom) return modalFrame(product, detailBody(product, quantity), 'detail-modal');
   const bulk = mode === 'bulk' && !custom;
-  return modalFrame(product, directOrderBody(product, bulk), bulk ? 'direct-order-modal bulk-order-modal' : 'direct-order-modal commission-order-modal');
+  return modalFrame(product, directOrderBody(product, bulk, state), bulk ? 'direct-order-modal bulk-order-modal' : 'direct-order-modal commission-order-modal');
 }

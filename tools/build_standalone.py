@@ -51,9 +51,9 @@ def make_module(source):
     modules[key] = '(function(){\n' + '\n'.join(imports) + '\n' + content + '\nreturn {' + ','.join(exports) + '};\n})()'
 
 
-CUSTOMER_OUTPUT = 'Birdforge_V6_0_Standalone.html'
-WORKSHOP_OUTPUT = 'Birdforge_V6_0_Workshop_Standalone.html'
-DEMO_OUTPUT = 'Birdforge_V6_0_All_In_One_Standalone.html'
+CUSTOMER_OUTPUT = 'Birdforge_V6_2_Standalone.html'
+WORKSHOP_OUTPUT = 'Birdforge_V6_2_Workshop_Standalone.html'
+DEMO_OUTPUT = 'Birdforge_V6_2_All_In_One_Standalone.html'
 
 
 def build(page, entry, output_name, other_name):

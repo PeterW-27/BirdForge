@@ -1,3 +1,8 @@
+import { dailyPrices, mineDate } from '../domain/mining.js';
+import { CARDS } from '../domain/raid.js';
+import { redeemCredit } from '../domain/materials.js';
+import { creditCheckbox } from '../ui/components/checkout-form.js';
+import { minePage } from '../ui/pages/mine.js';
 import { createBackup, parseBackup, MAX_BACKUP_BYTES } from '../domain/backup.js';
 import { captureUpdates } from '../domain/orb.js';
 import { mountOrb } from '../ui/components/orb.js';
@@ -5,7 +10,7 @@ import { builtInCatalog } from '../data/catalog.js';
 import { addProduct, removeProduct, EXAMPLE_PRODUCT } from '../domain/products.js';
 import { loadState, saveState, resetState, storageAvailable, STORAGE_KEY } from '../data/storage.js';
 import { addSampleOrders } from '../data/samples.js';
-import { makeState, changeQuantity, cartCount, totalCents, money, nextOrderId, placeCartOrder, placeDirectOrder, placeRepairOrder, updateStatus, setQuote, toggleTicket, restoreState, queueInfo, MIN_BULK, MAX_BULK } from '../domain/core.js';
+import { makeState, changeQuantity, cartCount, totalCents, money, escapeHTML, nextOrderId, placeCartOrder, placeDirectOrder, placeRepairOrder, updateStatus, setQuote, toggleTicket, restoreState, queueInfo, MIN_BULK, MAX_BULK } from '../domain/core.js';
 import { pageForQuery } from '../domain/search.js';
 import { header, footer, mobileNav, CUSTOMER_VIEWS, SMITH_VIEWS } from '../ui/components/site-shell.js';
 import { productModal, referenceModal } from '../ui/components/product-modal.js';
@@ -19,7 +24,7 @@ import { featuresFor, getFeature } from '../extensions/registry.js';
 import { businessReport, reportCsv } from '../domain/reports.js';
 import { createSync, loadLocal, saveLocal } from '../data/sync.js';
 
-const VIEW_TITLES = Object.freeze({ shop: 'Shop', cart: 'Satchel', repairs: 'Repairs', orders: 'My Orders', admin: 'Forge Board', tickets: 'Work Tickets' });
+const VIEW_TITLES = Object.freeze({ shop: 'Shop', cart: 'Satchel', mine: 'Mine', repairs: 'Repairs', orders: 'My Orders', admin: 'Forge Board', tickets: 'Work Tickets' });
 const MAX_IMAGE_BYTES = 350000;
 const IMAGE_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp']);
 const SAVE_FAILED = 'Gunter could not save this in your browser (storage is full or blocked). Nothing was changed. Try again without a photo.';
@@ -45,6 +50,12 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
   let online = true;
   let catalog = [...builtInCatalog, ...state.addedProducts];
   const ui = { view: views[0], search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', showDelivered: false, productFormOpen: false, lastOrder: null, recycle: false, recycleDetails: '', reportRange: '7d', reportFrom: '', reportTo: '' };
+  let raidView = null;
+  let raidSelection = null;
+  let raidKey = '';
+  let raidPending = false;
+  let raidReveal = false;
+  let raidEventKey = '';
   let backupRead = 0;
   let savingBackup = false;
   let activeModal = null;
@@ -97,7 +108,24 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
     const orb = shared.orb ? { messages: shared.orb.messages.map((m) => ({ ...m, shown: m.kind === 'customer' || shown.has(m.id) })), sessions: local.sessions, lastOpenedAt: local.lastOpenedAt } : undefined;
     state = restoreState({ ...shared, cart: state.cart, favorites: state.favorites, orb }, builtInCatalog);
     catalog = [...builtInCatalog, ...state.addedProducts];
+    const previousTurn = raidView?.turn;
+    raidView = shared.raidView ?? null;
+    const nextKey = raidView ? `${raidView.id}:${raidView.turn}:${raidView.phase}` : '';
+    if (raidKey !== nextKey) {
+      raidSelection = null;
+      raidKey = nextKey;
+      if (side === 'customer' && raidView?.turn !== previousTurn && previousTurn !== undefined) globalThis.navigator?.vibrate?.(80);
+    }
+    ui.raidView = raidView;
+    ui.raidOnline = Boolean(sync);
     if (!force && documentRoot.activeElement?.closest?.('form:not([data-orb-form])')) {
+      const taken = new Set(raidView?.players.map((p) => p.color));
+      documentRoot.querySelectorAll('#raid-join [name="color"]').forEach((input) => {
+        input.disabled = taken.has(input.value);
+        if (input.disabled) input.checked = false;
+      });
+      const join = documentRoot.querySelector('#raid-join button[type="submit"]');
+      if (join) join.disabled = raidView?.phase !== 'lobby';
       messenger?.render();
       return;
     }
@@ -149,6 +177,7 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
       cart: () => cartPage(state, ui, catalog),
       orders: () => ordersPage(state, ui.lastOrder),
       repairs: () => repairsPage(),
+      mine: () => minePage(state, raidView, dailyPrices(mineDate()), { online: Boolean(sync), selected: raidSelection }),
       admin: () => adminPage(state, ui, featuresFor('admin'), catalog),
       tickets: () => ticketsPage(state),
     };
@@ -181,12 +210,110 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
     if (search.value !== ui.search) search.value = ui.search;
     documentRoot.title = `${VIEW_TITLES[ui.view] || 'Shop'} · Birdforge`;
     messenger?.render();
+    paintRaid();
     const live = documentRoot.querySelector('[data-live]');
     if (live) {
       live.textContent = online ? 'Live' : 'Offline';
       live.classList.toggle('is-offline', !online);
     }
   }
+
+  function raidAction(action) {
+    if (!sync) { notice('The mine needs the online shop.'); return; }
+    if (raidPending) return;
+    raidPending = true;
+    const stamp = raidView && action.type !== 'raid.open' ? { raidId: raidView.id, phase: raidView.phase, turn: raidView.turn } : {};
+    sync.send({ ...stamp, ...action }).then((reply) => {
+      if (reply.shared) acceptShared(reply.shared, true);
+      if (reply.error) notice(reply.error);
+    }).finally(() => { raidPending = false; });
+  }
+
+  function paintRaid() {
+    if (!sync || !raidView) return;
+    const now = Date.now();
+    const until = Date.parse(raidView.revealUntil) || 0;
+    const clock = documentRoot.querySelector('[data-raid-clock]');
+    if (clock && raidView.deadline) {
+      const remaining = Math.max(0, Math.ceil((Date.parse(raidView.deadline) - Math.max(now, until)) / 1000));
+      clock.textContent = remaining;
+      clock.style.setProperty('--remaining', remaining / (raidView.phase === 'play' ? 30 : 15));
+    }
+    const stage = documentRoot.querySelector('#raid-stage');
+    if (!stage) return;
+    stage.classList.remove('is-shaking');
+    stage.querySelectorAll('.is-acting,.is-blocking,.is-healing').forEach((el) => el.classList.remove('is-acting', 'is-blocking', 'is-healing'));
+    stage.querySelectorAll('[data-raid-enemy-float],[data-raid-ore-flight]').forEach((el) => { el.textContent = ''; el.classList.remove('is-flying'); });
+    stage.querySelectorAll('[data-raid-float]').forEach((el) => { el.textContent = ''; });
+    const enemy = stage.querySelector('[data-raid-enemy]');
+    enemy?.classList.remove('is-hit', 'is-attacking', 'is-down');
+    stage.querySelector('[data-raid-pot]')?.classList.remove('is-gaining');
+    const box = stage.querySelector('[data-raid-event]');
+    if (box) box.textContent = '';
+    const events = raidView.lastEvents;
+    const index = Math.floor((now - (until - events.length * 700)) / 700);
+    const event = now < until ? events[index] : null;
+    if (!event) return;
+    const person = (id) => raidView.players.find((p) => p.id === id)?.name || 'Crew';
+    const player = stage.querySelector(`[data-miner="${event.player}"]`);
+    const actor = stage.querySelector(`[data-miner="${event.source || event.player}"]`);
+    const float = player?.querySelector('[data-raid-float]');
+    if (actor) { void actor.offsetWidth; actor.classList.add('is-acting'); }
+    if (event.card && box) box.textContent = `${person(event.source || event.player)} · ${CARDS[event.card]?.name || 'Card'}`;
+    if (float && event.card) float.textContent = CARDS[event.card]?.name || '';
+    if (event.type === 'attack') {
+      enemy?.classList.add('is-hit');
+      const damage = enemy?.querySelector('[data-raid-enemy-float]');
+      if (damage) damage.textContent = `−${event.damage}`;
+      if (box) box.textContent += ` · ${event.damage} damage${event.blocked ? ` (${event.blocked} armor)` : ''}`;
+    }
+    if (event.type === 'block') { player?.classList.add('is-blocking'); if (float) float.textContent = `+${event.amount} Block`; }
+    if (event.type === 'heal') { player?.classList.add('is-healing'); if (float) float.textContent = `+${event.amount} HP`; }
+    if (event.type === 'enemy') {
+      enemy?.classList.add('is-attacking');
+      stage.classList.add('is-shaking');
+      if (box) box.textContent = event.intent;
+      for (const t of event.targets) {
+        const target = stage.querySelector(`[data-miner="${t.player}"]`);
+        const label = target?.querySelector('[data-raid-float]');
+        if (label) label.textContent = `−${t.damage} HP · ${t.blocked} blocked`;
+        target?.classList.add('is-acting');
+      }
+    }
+    if (event.type === 'selfDamage' && float) float.textContent = `−${event.damage} HP`;
+    if (event.type === 'ko' && box) box.textContent = `${person(event.player)} is knocked out!`;
+    if (event.type === 'enemyDown') { enemy?.classList.add('is-down'); if (box) box.textContent = 'Enemy defeated!'; }
+    if (event.type === 'ore') {
+      stage.querySelector('[data-raid-pot]')?.classList.add('is-gaining');
+      const ore = stage.querySelector('[data-raid-ore-flight]');
+      if (ore) { ore.textContent = '◆ ◆ ◆'; void ore.offsetWidth; ore.classList.add('is-flying'); }
+      if (box) box.textContent = `Ore flies into the pot · ${Object.entries(event.haul).map(([ore, qty]) => `${qty} ${ore}`).join(', ')}`;
+    }
+    if (event.type === 'floor' && box) box.textContent = event.floor === 5 ? 'The Ore Wyrm awakens' : `Entering floor ${event.floor}`;
+  }
+
+  function raidTick() {
+    if (!raidView || (ui.view !== 'mine' && !(ui.view === 'admin' && ui.adminTab === 'raid'))) return;
+    const now = Date.now();
+    const until = Date.parse(raidView.revealUntil) || 0;
+    const revealing = now < until;
+    const key = `${raidView.id}:${raidView.turn}:${Math.floor((now - until) / 700)}`;
+    if (revealing !== raidReveal) {
+      raidReveal = revealing;
+      render();
+    } else if (key !== raidEventKey && ui.view === 'admin') paintRaid();
+    else {
+      const clock = documentRoot.querySelector('[data-raid-clock]');
+      if (clock && raidView.deadline) {
+        const remaining = Math.max(0, Math.ceil((Date.parse(raidView.deadline) - Math.max(now, until)) / 1000));
+        clock.textContent = remaining;
+        clock.style.setProperty('--remaining', remaining / (raidView.phase === 'play' ? 30 : 15));
+      }
+    }
+    raidEventKey = key;
+    if (ui.view === 'admin' && ui.adminTab === 'raid' && side === 'smith' && online && raidView.deadline && now >= Date.parse(raidView.deadline)) raidAction({ type: 'raid.resolve' });
+  }
+
 
   // clear popup forms
   function closeModal() {
@@ -220,7 +347,7 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
     if (!product) return;
     if (!activeModal) returnFocus = documentRoot.activeElement;
     activeModal = { id, mode };
-    modalRoot.innerHTML = productModal(product, state.cart[id] || 0, mode);
+    modalRoot.innerHTML = productModal(product, state.cart[id] || 0, mode, state);
     documentRoot.body.classList.add('has-modal');
     modalRoot.querySelector('.modal-close')?.focus();
   }
@@ -468,13 +595,19 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
   function updateEstimates() {
     const subtotal = totalCents(catalog, state);
     const cartTotal = documentRoot.getElementById('cart-estimate');
-    if (cartTotal) cartTotal.textContent = money(subtotal);
+    if (cartTotal) cartTotal.textContent = money(subtotal - Number(documentRoot.querySelector('#checkout [name="creditCents"]:checked')?.value || 0));
 
     const preview = documentRoot.getElementById('direct-estimate');
     const form = documentRoot.getElementById('direct-order');
     if (!preview || !form) return;
     const product = catalog.find((p) => p.id === form.dataset.id);
     const qty = Number(form.querySelector('[name="qty"]')?.value);
+    const credit = documentRoot.getElementById('direct-credit');
+    if (credit) {
+      const checked = credit.querySelector('input')?.checked;
+      credit.innerHTML = creditCheckbox(state, Number.isSafeInteger(qty) && qty >= MIN_BULK && qty <= MAX_BULK ? product.priceCents * qty : 0);
+      if (credit.querySelector('input')) credit.querySelector('input').checked = Boolean(checked);
+    }
     preview.textContent = Number.isSafeInteger(qty) && qty >= MIN_BULK && qty <= MAX_BULK
       ? `Estimated total: ${money(product.priceCents * qty)}`
       : `Enter a whole number from ${MIN_BULK} to ${MAX_BULK}.`;
@@ -710,6 +843,28 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
   // actions
   function handleAction(action, id, button, event) {
     switch (action) {
+      case 'raid-open':
+      case 'raid-start':
+      case 'raid-close':
+        raidAction({ type: `raid.${action.slice(5)}` });
+        return;
+      case 'raid-select':
+        raidSelection = Number(id);
+        render();
+        return;
+      case 'raid-play':
+        raidAction({ type: 'raid.play', handIndex: raidSelection });
+        return;
+      case 'raid-reward':
+        raidAction({ type: 'raid.reward', rewardIndex: Number(id) });
+        return;
+      case 'raid-deeper':
+      case 'raid-home':
+        raidAction({ type: 'raid.vote', choice: action.slice(5) });
+        return;
+      case 'raid-fullscreen':
+        main.requestFullscreen?.().catch(() => notice('Fullscreen is unavailable on this screen.'));
+        return;
       case 'export-backup':
         confirmBackup();
         return;
@@ -874,6 +1029,7 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
       updateEstimates();
       return;
     }
+    if (el.name === 'creditCents') { updateEstimates(); return; }
     if (el.id === 'sort') {
       ui.sort = el.value;
       render();
@@ -928,6 +1084,23 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
       submitSearch();
       return;
     }
+    if (form.id === 'raid-join') {
+      event.preventDefault();
+      if (!validateForm(form)) return;
+      const data = new FormData(form);
+      raidAction({ type: 'raid.join', code: String(data.get('code') || '').toUpperCase(), name: data.get('name'), color: data.get('color') });
+      return;
+    }
+    if (form.classList.contains('credit-form')) {
+      event.preventDefault();
+      const cents = Number(new FormData(form).get('creditCents') || 0);
+      if (!cents) return;
+      if (sync) { act({ type: 'order.credit', id: form.dataset.id, creditCents: cents }, () => notice('Forge Credit applied.')); return; }
+      const result = redeemCredit(state, form.dataset.id, cents, 'local', new Date().toISOString());
+      if (result.error) notice(result.error);
+      else if (commit(result.state)) notice('Forge Credit applied.');
+      return;
+    }
     const handlers = { checkout: submitCart, 'direct-order': submitDirect, 'repair-order': submitRepair, 'add-product': submitProduct };
     const handler = handlers[form.id] || (form.classList.contains('quote-form') ? submitQuote : null);
     if (!handler) return;
@@ -943,6 +1116,7 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
     if (el.closest?.('#add-product')) updateProductPreview();
     if (el.matches('#recycle-panel [name="recycleDetails"]')) ui.recycleDetails = el.value;
     if (el.matches('#direct-order [name="qty"]')) updateEstimates();
+    if (el.form?.id === 'raid-join' && el.name === 'code') el.value = el.value.toUpperCase();
     if (el.id === 'search') {
       const wasEmpty = !ui.search.trim();
       ui.search = el.value;
@@ -1025,6 +1199,7 @@ export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
     }, notify: notice });
   render();
   sync?.connect();
+  if (sync) setInterval(raidTick, side === 'smith' ? 100 : 1000);
   if (!persistent) notice('This browser is not saving data. Orders will disappear when you close the page.');
 
   return {

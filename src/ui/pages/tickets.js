@@ -13,6 +13,6 @@ export function ticketsPage(state) {
       <p>Mark each item complete when it leaves the anvil. When every item in an order is done, the order moves to Delivering.</p>
     </div></section>
     ${tickets.length
-      ? `<div class="ticket-grid">${tickets.map(workTicket).join('')}</div>`
+      ? `<div class="ticket-grid">${tickets.map((ticket, index) => workTicket(ticket, index, state)).join('')}</div>`
       : emptyState('No open work', 'New orders appear here. Custom commissions and repairs appear once their status is Processing.', 'shop', 'Go to the shop')}`;
 }

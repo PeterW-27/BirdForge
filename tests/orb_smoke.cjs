@@ -28,7 +28,7 @@ async function run() {
   fs.mkdirSync(screenshots, { recursive: true });
   try {
     browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {}) });
-    for (const entry of ['index.html', 'dist/Birdforge_V6_0_Standalone.html']) {
+    for (const entry of ['index.html', 'dist/Birdforge_V6_1_Standalone.html']) {
       const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 1 });
       const page = await context.newPage();
       const errors = [];
@@ -132,7 +132,7 @@ async function run() {
       await context.close();
     }
     const offline = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await offline.goto(pathToFileURL(path.join(root, 'dist/Birdforge_V6_0_Standalone.html')).href);
+    await offline.goto(pathToFileURL(path.join(root, 'dist/Birdforge_V6_1_Standalone.html')).href);
     await offline.locator('#orb-launcher').click();
     assert.equal(await offline.locator('#orb-dialog').isVisible(), true);
     console.log('PASS standalone file:// boot');

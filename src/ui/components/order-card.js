@@ -1,12 +1,13 @@
+import { creditCheckbox } from './checkout-form.js';
 import { statusHistory } from './status-history.js';
 import { isQuotedType } from '../../domain/core.js';
 import { text, price, progress, statusBadge, crestImage, typeLabel, queuePanel, referenceButton } from './shared.js';
 
 // show total price and discription on order cards, show quote tag on repair and commission orders
-function priceLine(order) {
+function priceLine(order, state) {
   if (order.totalCents !== null) {
     const label = isQuotedType(order.type) ? 'Quoted price' : 'Total';
-    return `<div class="split order-total"><span>${label}</span><strong>${price(order.totalCents)}</strong></div>`;
+    return `<div class="split order-total"><span>${label}</span><strong>${price(order.totalCents)}</strong></div>${order.creditCents ? `<p>Forge Credit used: −${price(order.creditCents)}</p><p><strong>Amount payable: ${price(order.totalCents - order.creditCents)}</strong></p>` : ''}${isQuotedType(order.type) && !order.creditCents && !['Delivering', 'Delivered'].includes(order.status) && state && creditCheckbox(state, order.totalCents) ? `<form class="credit-form" data-id="${text(order.id)}">${creditCheckbox(state, order.totalCents)}<button type="submit" class="button button-secondary">Apply Forge Credit</button></form>` : ''}`;
   }
   return `<div class="split order-total"><span>Price</span><strong class="muted">Quote pending</strong></div>`;
 }
@@ -22,7 +23,7 @@ function detailLines(order) {
 }
 
 // join all the information on order card
-export function orderCard(order, queue = null, { highlight = false } = {}) {
+export function orderCard(order, queue = null, { highlight = false, state = null } = {}) {
   const special = order.type === 'custom';
   return `<article class="surface order-card ${special ? 'royal-order' : ''} ${highlight ? 'is-new' : ''}" data-order="${text(order.id)}">
     ${special ? crestImage('order-crest') : ''}
@@ -38,7 +39,7 @@ export function orderCard(order, queue = null, { highlight = false } = {}) {
     ${progress(order.status, order.type)}
     <p>${order.items.map((item) => `${item.qty} × ${text(item.name)}`).join(' · ')}</p>
     ${detailLines(order)}
-    ${priceLine(order)}
+    ${priceLine(order, state)}
     ${statusHistory(order)}
   </article>`;
 }

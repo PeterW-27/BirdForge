@@ -54,7 +54,7 @@ function reachedAt(order, statuses) {
   return entry ? Date.parse(entry.at) : null;
 }
 
-function measure(orders, period) {
+function measure(orders, period, ledger = []) {
   const received = orders.filter((o) => inPeriod(Date.parse(o.createdAt), period));
   const delivered = orders.filter((o) => inPeriod(reachedAt(o, ['Delivered']), period));
   const finished = orders.filter((o) => inPeriod(reachedAt(o, ['Delivering', 'Delivered']), period));
@@ -71,14 +71,21 @@ function measure(orders, period) {
       products.set(line.id, entry);
     }
   }
+  const materialCostCents = delivered.reduce((sum, o) => sum + (o.materials?.costCents || 0), 0);
+  const revenueCents = delivered.reduce((sum, o) => sum + (o.totalCents || 0) - (o.creditCents || 0), 0);
   return {
+    materialCostCents,
+    grossProfitCents: revenueCents - materialCostCents,
+    oreBoughtCents: ledger.filter((e) => e.kind === 'bought' && inPeriod(Date.parse(e.at), period)).reduce((n, e) => n + e.cents, 0),
+    creditRedeemedCents: orders.filter((o) => inPeriod(Date.parse(o.creditAt || o.createdAt), period)).reduce((n, o) => n + (o.creditCents || 0), 0),
+    savedByMineCents: delivered.reduce((n, o) => n + (o.materials?.savedCents || 0), 0),
     received: received.length,
     byType,
     pieces: received.reduce((sum, o) => sum + o.items.reduce((n, line) => n + line.qty, 0), 0),
     bookedCents: priced.reduce((sum, o) => sum + o.totalCents, 0),
     averageCents: priced.length ? Math.round(priced.reduce((sum, o) => sum + o.totalCents, 0) / priced.length) : 0,
     deliveredOrders: delivered.length,
-    revenueCents: delivered.reduce((sum, o) => sum + (o.totalCents || 0), 0),
+    revenueCents,
     finishedOrders: finished.length,
     finishedPieces: finished.reduce((sum, o) => sum + o.items.reduce((n, line) => n + line.qty, 0), 0),
     averageLeadMs: leadTimes.length ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length : null,
@@ -107,7 +114,7 @@ function series(orders, period) {
   return buckets.map((bucket) => ({
     label: bucket.label,
     orders: orders.filter((o) => inPeriod(Date.parse(o.createdAt), bucket)).length,
-    revenueCents: orders.filter((o) => inPeriod(reachedAt(o, ['Delivered']), bucket)).reduce((sum, o) => sum + (o.totalCents || 0), 0),
+    revenueCents: orders.filter((o) => inPeriod(reachedAt(o, ['Delivered']), bucket)).reduce((sum, o) => sum + (o.totalCents || 0) - (o.creditCents || 0), 0),
   }));
 }
 
@@ -151,6 +158,7 @@ function summary(current, previous, open, awaitingQuote, queueLength, label) {
   if (todo.length) lines.push(`Right now Gunter has ${todo.join(' and ')}.`);
   else if (open) lines.push(`Right now ${plural(open, 'order')} ${open === 1 ? 'is' : 'are'} out for delivery or waiting on the customer.`);
   else lines.push('Right now the work list is clear.');
+  lines.push(`Gross profit was ${money(current.grossProfitCents)} after ${money(current.materialCostCents)} in material costs. The mine saved ${money(current.savedByMineCents)} against market prices; customers earned ${money(current.oreBoughtCents)} for ore and redeemed ${money(current.creditRedeemedCents)} Forge Credit.`);
   return lines;
 }
 
@@ -159,8 +167,8 @@ export function businessReport(state, { range = '7d', from = '', to = '', now = 
   const period = reportPeriod(range, from, to, orders, now);
   const length = period.end - period.start;
   const previousPeriod = { start: period.start - length, end: period.start };
-  const current = measure(orders, period);
-  const previous = measure(orders, previousPeriod);
+  const current = measure(orders, period, state.oreLedger || []);
+  const previous = measure(orders, previousPeriod, state.oreLedger || []);
   const open = orders.filter((o) => o.status !== 'Delivered').length;
   const awaitingQuote = orders.filter((o) => isQuotedType(o.type) && o.totalCents === null && o.status !== 'Delivered').length;
   const queueLength = forgeQueue(state).length;
@@ -203,6 +211,11 @@ export function reportCsv(report) {
     ['Average order value (crowns)', (c.averageCents / 100).toFixed(2)],
     ['Orders delivered', c.deliveredOrders],
     ['Revenue from delivered orders (crowns)', (c.revenueCents / 100).toFixed(2)],
+    ['Material cost (crowns)', (c.materialCostCents / 100).toFixed(2)],
+    ['Gross profit (crowns)', (c.grossProfitCents / 100).toFixed(2)],
+    ['Ore bought from customers (crowns)', (c.oreBoughtCents / 100).toFixed(2)],
+    ['Forge Credit redeemed (crowns)', (c.creditRedeemedCents / 100).toFixed(2)],
+    ['Saved by the mine (crowns)', (c.savedByMineCents / 100).toFixed(2)],
     ['Orders finished at the anvil', c.finishedOrders],
     ['Average time to delivery', formatDuration(c.averageLeadMs)],
     ['Orders on the work list now', report.queueLength],

@@ -17,6 +17,7 @@ const SYNONYMS = Object.freeze({
 
 // page shortcuts
 const PAGE_SHORTCUTS = Object.freeze([
+  { view: 'mine', label: 'Mine', words: ['mine', 'mining', 'ore', 'dig', 'canary'] },
   { view: 'repairs', label: 'Repairs', words: ['repair', 'repairs', 'fix', 'broken', 'mend'] },
   { view: 'orders', label: 'My Orders', words: ['order', 'orders', 'my orders', 'track', 'tracking', 'queue', 'status'] },
   { view: 'cart', label: 'Satchel', words: ['satchel', 'cart', 'basket', 'checkout'] },

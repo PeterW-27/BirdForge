@@ -1,7 +1,7 @@
 import { crestImage } from './shared.js';
 
 // page header navigations initial
-export const CUSTOMER_VIEWS = Object.freeze(['shop', 'cart', 'repairs', 'orders']);
+export const CUSTOMER_VIEWS = Object.freeze(['shop', 'cart', 'mine', 'repairs', 'orders']);
 export const SMITH_VIEWS = Object.freeze(['admin', 'tickets']);
 
 const satchelLabel = 'Satchel <b class="cart-count" data-cart-count>0</b>';
@@ -9,6 +9,7 @@ const satchelLabel = 'Satchel <b class="cart-count" data-cart-count>0</b>';
 const customerGroup = `<div class="nav-group" aria-label="Customer">
         <button type="button" data-view="shop">Shop</button>
         <button type="button" data-view="cart">${satchelLabel}</button>
+        <button type="button" data-view="mine">Mine</button>
         <button type="button" data-view="repairs">Repairs</button>
         <button type="button" data-view="orders">My Orders</button>
       </div>`;
@@ -31,6 +32,7 @@ export function header(side = 'customer') {
     : `<div class="nav-group" aria-label="Customer">
         <button type="button" data-view="shop">Shop</button>
         <button type="button" data-view="cart">${satchelLabel}</button>
+        <button type="button" data-view="mine">Mine</button>
         <button type="button" data-view="repairs">Repairs</button>
         <button type="button" data-view="orders">My Orders</button>
       </div>`;
@@ -69,10 +71,11 @@ export function footer(side = 'customer', showSwitch = true, synced = false) {
 export function mobileNav(side = 'customer') {
   if (side === 'all') {
     return `<nav class="mobile-nav" aria-label="Mobile navigation">
-    <div class="mobile-nav-group" data-nav-role="customer" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div class="mobile-nav-group" data-nav-role="customer" style="grid-template-columns:repeat(6,minmax(0,1fr))">
       <button type="button" data-view="shop">Shop</button>
       <button type="button" data-view="cart">${satchelLabel}</button>
-      <button type="button" data-view="repairs">Repairs</button>
+      <button type="button" data-view="mine">Mine</button>
+        <button type="button" data-view="repairs">Repairs</button>
       <button type="button" data-view="orders">My Orders</button>
       <button type="button" class="role-switch" data-view="admin">Gunter ⚒</button>
     </div>
@@ -96,7 +99,8 @@ export function mobileNav(side = 'customer') {
     <div class="mobile-nav-group" data-nav-role="customer">
       <button type="button" data-view="shop">Shop</button>
       <button type="button" data-view="cart">${satchelLabel}</button>
-      <button type="button" data-view="repairs">Repairs</button>
+      <button type="button" data-view="mine">Mine</button>
+        <button type="button" data-view="repairs">Repairs</button>
       <button type="button" data-view="orders">My Orders</button>
     </div>
   </nav>`;

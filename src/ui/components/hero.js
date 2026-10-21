@@ -15,5 +15,5 @@ export function hero() {
     <li><b>1</b><span><strong>Choose</strong> <span class="step-more">goods, or ask for a custom piece or a repair.</span></span></li>
     <li><b>2</b><span><strong>Gunter forges</strong> <span class="step-more">orders in the order they arrive.</span></span></li>
     <li><b>3</b><span><strong>Track</strong> <span class="step-more">your place in line under My Orders.</span></span></li>
-  </ol>`;
+  </ol><section class="surface mine-entry"><h2>Gunter's Mining Adventure</h2><p>Join a crew of 2–6 on your phone, play cards together and battle five floors on Gunter's big screen. Bring home ore for Forge Credit.</p><button class="button" type="button" data-view="mine">Join the mine</button></section>`;
 }

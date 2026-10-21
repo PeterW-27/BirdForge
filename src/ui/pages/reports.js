@@ -51,6 +51,11 @@ export function reportsPanel(state, ui, now = Date.now()) {
     </div>
     <div class="report-tiles">
       ${tile('Revenue (delivered)', text(money(c.revenueCents)), trend(report.revenueChange))}
+      ${tile('Material cost', text(money(c.materialCostCents)))}
+      ${tile('Gross profit', text(money(c.grossProfitCents)))}
+      ${tile('Ore bought from customers', text(money(c.oreBoughtCents)))}
+      ${tile('Forge Credit redeemed', text(money(c.creditRedeemedCents)))}
+      ${tile('Saved by the mine', text(money(c.savedByMineCents)))}
       ${tile('Orders received', c.received, trend(report.orderChange))}
       ${tile('Booked value', text(money(c.bookedCents)))}
       ${tile('Average order', text(money(c.averageCents)))}

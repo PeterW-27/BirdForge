@@ -79,7 +79,7 @@ export function createSync({ onShared, onStatus }) {
   async function send(action) {
     let body;
     try {
-      const response = await fetch('/api/actions', { method: 'POST', headers, body: JSON.stringify({ ...action, requestId: randomId() }) });
+      const response = await fetch('/api/actions', { method: 'POST', headers, body: JSON.stringify({ ...action, requestId: action.requestId || randomId() }) });
       body = await response.json();
     } catch {
       setOnline(false);

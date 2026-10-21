@@ -1,4 +1,4 @@
-# Birdforge Version 6.0
+# Birdforge Version 6.2
 
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
@@ -11,6 +11,21 @@ Birdforge is the shop application for Gunter, the blacksmith of Mautern. Custome
 Gunter uses Forge Board to review orders, set prices, and update their status. Work Tickets gives him a separate list of unfinished jobs, ordered from oldest to newest. Each ticket contains the work details without the customer's contact information.
 
 The app is written in HTML, CSS, and JavaScript, with layouts for phones and desktop browsers. It runs fully offline in one browser, or online with a small Node.js server so customers and Gunter can use different devices. Orders and payments are for demonstration only.
+
+### New in V6.2
+
+- **Gunter's Mine:** A cooperative card game for 2–6 players, inspired by Slay the Spire. The crew fights its way down a five-floor mine, ending with the Ore Wyrm. Enemy health grows with the number of players.
+- **Phones as controllers, one big screen:** Each player holds three cards on their phone and locks in one per turn. Gunter's Mine Stage shows the enemy, the miners, the enemy's next move and a 30-second timer, then plays every card in order: shields and support, attacks, prospecting, and finally the enemy.
+- **Twelve cards:** Attack (Pick Strike, Heavy Pick, Dynamite), Defend (Iron Shield, Cover, Shield Wall), Support (Bandage, Whetstone, Armor Break) and Prospect (Gem Sense, Lantern, Lucky Find). After each floor, every player adds one of three reward cards to their own deck.
+- **Push your luck together:** After each floor the crew votes to delve deeper or head home with the ore pot; a tie means home. If every miner is knocked out, half the pot is lost. The pot is split between the players and sold to Gunter for Forge Credit.
+- **Fair play:** Rooms use a four-letter code. Hands, rewards and the shuffle stay on the server, so no phone can see another player's cards.
+
+### New in V6.1
+
+- **Forge Credit:** Ore brought home is sold to Gunter at 80% of the daily market price (prices move up to ±10% each day). Each device can earn up to 50.00 crowns per day; all ore still enters Gunter's store after the cap. Credit can pay up to 25% of an order.
+- **Order discounts:** Use credit for up to 25% of a normal or bulk order. Custom commissions and repairs support credit from My Orders after receiving a quote. Cards show credit used and the remaining amount payable.
+- **Material costs:** Ore that customers bring home becomes Gunter's stock. Completing a ticket uses its recipe from that stock and buys only missing ore at market, and the material cost follows into delivered-order profit.
+- **Mine contribution in Reports:** Material cost, gross profit, customer ore purchases, credit redeemed, and savings against market prices appear in the report and CSV.
 
 ### New in V6.0
 
@@ -35,9 +50,9 @@ Extract the project ZIP and open one of these files in a modern browser. Each fi
 
 | File | Use |
 | --- | --- |
-| `dist/Birdforge_V6_0_All_In_One_Standalone.html` | Customer pages and Gunter's workshop in one window. Best for a quick demo. |
-| `dist/Birdforge_V6_0_Standalone.html` | Customer shop only. |
-| `dist/Birdforge_V6_0_Workshop_Standalone.html` | Gunter's workshop only. |
+| `dist/Birdforge_V6_2_All_In_One_Standalone.html` | Customer pages and Gunter's workshop in one window. Best for a quick demo. |
+| `dist/Birdforge_V6_2_Standalone.html` | Customer shop only. |
+| `dist/Birdforge_V6_2_Workshop_Standalone.html` | Gunter's workshop only. |
 
 Open the customer and workshop files side by side in the same browser to see them update each other. Use the same browser and file location to keep working with the same saved demo data.
 
@@ -95,6 +110,12 @@ The optional Recycle Your Iron Tools section records old iron the customer plans
 
 Search accepts product names and descriptive terms, including common spelling variations and limited typos. Press Enter or the search button to focus the results. Queries such as `repair`, `orders`, and `cart` open those pages. Use the heart button to save standard products and Your ♡ to find them again.
 
+### Play Gunter's Mine
+
+Gunter's Mine needs the online shop. On Gunter's computer, open Forge Board → Mine Stage, choose Open room and Fullscreen, and show the big screen to everyone. Players open birdforge.shop on their phones, choose Mine (or search `mine`, `ore` or `dig`), enter the room code, a name and a free color, and join. Gunter starts once at least two miners have joined.
+
+Each turn, read the enemy's next move, pick one card on your phone and tap Play. When everyone has locked in, or the timer ends, the big screen plays the turn. Shields last one turn; knocked-out miners return with 6 HP on the next floor. After each floor, choose a reward card on your phone, then vote Delve deeper or Head home. Turns time out after 30 seconds and rewards and votes after 15 seconds: a missing card becomes a defensive card, a missing reward becomes the first choice and a missing vote counts as Head home. Keep Mine Stage open, because it advances the timers.
+
 ### Other requests
 
 - For a bulk purchase, select Bulk order (10+) on a standard product. Enter 10 to 10,000 units, a buyer title or position, and contact details. The order goes directly to Gunter without using the satchel.
@@ -129,6 +150,8 @@ Delivered orders are hidden from Forge Board by default; turn on Show delivered 
 - Phone and desktop layouts, with local saving and feedback when saving fails.
 - Business report with period selection, comparison, CSV export and printing.
 - Online mode with live updates between devices and private customer data.
+- Gunter's Mine: a cooperative card game for 2–6 players, with phones as controllers and a big-screen stage.
+- Forge Credit from mined ore, usable for up to 25% of an order, and material costs in the business report.
 
 ## Team contributions
 
@@ -149,9 +172,9 @@ demo.html                 All-in-one demo entry
 src/main.js               Customer startup (forge.js and demo.js start the other pages)
 src/controller/           Navigation, event handling, and state updates
 src/data/                 Catalog, browser storage, and sample orders
-src/domain/               Order, product, repair, queue, and search rules
+src/domain/               Order, product, repair, queue, search, mine game, credit and report rules
 src/ui/components/        Reusable interface components
-src/ui/pages/             Shop, Satchel, Repairs, Orders, and workshop pages
+src/ui/pages/             Shop, Satchel, Mine, Repairs, Orders, and workshop pages
 src/extensions/           Extension registration
 server/server.js          Online server with live updates
 deploy/                   Server service file and deployment scripts
@@ -177,4 +200,4 @@ The optional browser scripts in `tests/` need Python Playwright and Chromium. Th
 
 Offline, the app uses `localStorage` for orders, favorites, added products, and uploaded images. Data belongs to the current browser profile and origin, so different devices or browser profiles do not share it. Clearing browser data removes it. Large images or browser storage restrictions can prevent saving; the app reports save failures and checks stored data when restoring it.
 
-Online, orders, products and messages live on the server, while the satchel and saved items stay on each device. A customer is recognized by a random device ID stored in the browser, so clearing browser data or switching devices hides earlier orders from that customer (Gunter still sees them). The workshop has no login and relies on being reachable only from Gunter's computer. There is no payment processing or inventory service. Use fictional details when demonstrating it.
+Online, orders, products and messages live on the server, while the satchel and saved items stay on each device. A customer is recognized by a random device ID stored in the browser, so clearing browser data or switching devices hides earlier orders from that customer (Gunter still sees them). The workshop has no login and relies on being reachable only from Gunter's computer. There is no payment processing or external inventory service. V6.1 keeps its ore inventory in the same demo state as orders. Use fictional details when demonstrating it.

@@ -1,3 +1,5 @@
+import { orderNeeds, shortfall } from '../../domain/materials.js';
+import { catalog } from '../../data/catalog.js';
 import { forgeQueue, queueInfo } from '../../domain/core.js';
 import { isSampleOrder } from '../../data/samples.js';
 import { heading, emptyState, text } from '../components/shared.js';
@@ -11,12 +13,21 @@ function successMessage(state, lastOrder) {
 }
 
 // render orders page, show previous orders and hide sample orders
+export function miningQueuePrompt(state, order) {
+  const queue = queueInfo(state, order.id);
+  if (queue?.stage !== 'queued') return '';
+  const missing = shortfall(state.oreStock, orderNeeds({ ...order, items: order.items.filter((_, index) => !(state.completedTickets || []).includes(`${order.id}-${index}`)) }, [...catalog, ...(state.addedProducts || [])]));
+  const shortage = Object.entries(missing).map(([ore, qty]) => `${qty} ${ore}`).join(', ');
+  const message = shortage ? `Gunter is short of ${shortage} for your ${order.items.map((i) => i.name).join(', ')} — join the crew and play cards for ore →` : `You're #${queue.position} in line. Join a crew and play cards for ore while you wait →`;
+  return `<p class="surface mine-entry"><button class="text-button" type="button" data-view="mine">${text(message)}</button></p>`;
+}
+
 export function ordersPage(state, lastOrder) {
   const mine = state.orders.filter((order) => !isSampleOrder(order));
   const queueLength = forgeQueue(state).length;
   const intro = `See where each order sits on Gunter's work list. Gunter has ${queueLength} ${queueLength === 1 ? 'order' : 'orders'} in line right now.`;
   const list = mine.length
-    ? `<div class="order-list">${[...mine].reverse().map((order) => orderCard(order, queueInfo(state, order.id), { highlight: order.id === lastOrder })).join('')}</div>`
+    ? `<div class="order-list">${[...mine].reverse().map((order) => orderCard(order, queueInfo(state, order.id), { highlight: order.id === lastOrder, state }) + miningQueuePrompt(state, order)).join('')}</div>`
     : emptyState('No orders yet', 'Choose something from the shop, or ask for a repair. Your place in line will show here.');
   return `${heading('Track your orders', 'My orders', intro)}${successMessage(state, lastOrder)}${list}`;
 }

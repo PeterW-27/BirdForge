@@ -77,7 +77,7 @@ body[data-role="smith"] .site-header { background: #f4ecdc; }
   .how-it-works { grid-template-columns: 1fr; gap: var(--space-2); }
   .how-it-works li { padding: var(--space-2) var(--space-3); }
   .mobile-nav { display: block; }
-  .mobile-nav-group { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; }
+  .mobile-nav-group { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: stretch; }
   .mobile-nav-group[data-nav-role="smith"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mobile-nav-group[hidden] { display: none; }
   .mobile-nav button { font-size: 11px; padding: 10px 1px; }

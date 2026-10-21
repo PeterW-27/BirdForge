@@ -23,7 +23,7 @@ export function cartPage(state, ui = { recycle: false, recycleDetails: '' }, act
         <h2>Order summary</h2>
         <div class="split"><span>Subtotal</span><strong>${price(subtotal)}</strong></div>
         <div class="split order-total"><span>Total</span><strong id="cart-estimate">${price(subtotal)}</strong></div>
-        ${checkoutForm()}
+        ${checkoutForm(state, subtotal)}
       </aside>
     </div>`;
 }

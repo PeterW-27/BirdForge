@@ -238,7 +238,7 @@ test('opening another file chooser cancels a stale asynchronous backup read', as
 
 test('rebuilt standalone script boots and renders the same feature controls', () => {
   const fixture = environment();
-  const html = readFileSync(new URL('../dist/Birdforge_V6_0_Workshop_Standalone.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../dist/Birdforge_V6_2_Workshop_Standalone.html', import.meta.url), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   runInNewContext(script, fixture.globals());
   const button = { dataset: { view: 'admin' } };

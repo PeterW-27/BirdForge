@@ -1,3 +1,6 @@
+import { normalizeMining, creditOrder, consumeForOrder, normalizeOrderMining } from './materials.js';
+import { dailyPrices, mineDate } from './mining.js';
+import { normalizeRaid } from './raid.js';
 import { normalizeOrb } from './orb.js';
 import { REPAIR_STATUSES, REPAIR_TICKET_STATUSES, repairItemIssue } from './repairs.js';
 import { validAddedProduct } from './products.js';
@@ -122,13 +125,22 @@ export function restoreState(raw, catalog) {
       if (!isValidOrder(order, allIds) || seen.has(order.id)) return false;
       seen.add(order.id);
       return true;
-    }).map((order) => ({ ...order, statusHistory: orderHistory(order) }));
+    }).map((order) => {
+      const next = { ...order, statusHistory: orderHistory(order) };
+      if (order.creditCents !== undefined) next.creditCents = Number.isSafeInteger(order.creditCents) && order.creditCents >= 0 && order.creditCents <= Math.floor((order.totalCents || 0) / 4) ? order.creditCents : 0;
+      return normalizeOrderMining(next);
+    });
   }
   if (Array.isArray(raw.completedTickets)) {
     const validTicketIds = new Set(fresh.orders.flatMap((o) => o.items.map((_, i) => `${o.id}-${i}`)));
     fresh.completedTickets = [...new Set(raw.completedTickets.filter((id) => typeof id === 'string' && validTicketIds.has(id)))];
   }
   if (raw.orb !== undefined) fresh.orb = normalizeOrb(raw.orb, fresh.orders);
+  Object.assign(fresh, normalizeMining(raw));
+  if (raw.raid) {
+    const raid = normalizeRaid(raw.raid);
+    if (raid) fresh.raid = raid;
+  }
   return fresh;
 }
 
@@ -216,7 +228,7 @@ export function placeCartOrder(catalog, state, input, id, createdAt) {
     notes: String(input.notes ?? '').trim(),
     ...recyclingData(input),
   };
-  return { order, state: { ...state, cart: {}, orders: [...state.orders, order] } };
+  return creditOrder({ order, state: { ...state, cart: {}, orders: [...state.orders, order] } }, input);
 }
 
 export function placeDirectOrder(catalog, state, productId, mode, input, id, createdAt, referenceImage = null) {
@@ -256,7 +268,7 @@ export function placeDirectOrder(catalog, state, productId, mode, input, id, cre
     totalCents: product.priceCents === null ? null : product.priceCents * qty,
     ...recyclingData({ recycle: 'no' }),
   };
-  return { order, state: { ...state, orders: [...state.orders, order] } };
+  return creditOrder({ order, state: { ...state, orders: [...state.orders, order] } }, input);
 }
 
 // create and save repair order data
@@ -279,7 +291,7 @@ export function placeRepairOrder(state, input, id, createdAt, referenceImage = n
     referenceImage: referenceImage || null,
     totalCents: null,
   };
-  return { order, state: { ...state, orders: [...state.orders, order] } };
+  return creditOrder({ order, state: { ...state, orders: [...state.orders, order] } }, input);
 }
 
 // updating status
@@ -316,6 +328,7 @@ export function setQuote(state, id, crowns, at = new Date().toISOString()) {
   if (!isQuotedType(order.type)) return { error: 'Only custom commissions and repairs need a quote.' };
   const cents = parseCrowns(crowns);
   if (cents === null || cents <= 0 || cents > MAX_QUOTE_CENTS) return { error: PRICE_ERROR };
+  if ((order.creditCents || 0) > Math.floor(cents / 4)) return { error: 'This quote would exceed the Forge Credit limit. Keep the quote at least four times the redeemed credit.' };
   return { state: { ...state, orders: state.orders.map((o) => (o.id === id ? { ...transitionOrder(o, o.type === 'custom' && ['Placed', 'Assessing'].includes(o.status) ? 'Processing' : o.status, 'quote', at), totalCents: cents } : o)) } };
 }
 
@@ -338,6 +351,8 @@ export function toggleTicket(state, id, at = new Date().toISOString()) {
   if (!ticketStatusesFor(order.type).includes(order.status)) return { error: 'This order is not in the production queue.' };
   const completed = new Set(state.completedTickets || []);
   if (completed.has(id)) return { error: 'This work ticket was already completed.' };
+  const index = order.items.findIndex((_, i) => `${order.id}-${i}` === id);
+  state = consumeForOrder(state, order.id, dailyPrices(mineDate(at)), at, index).state;
   completed.add(id);
   const allFinished = order.items.every((_, index) => completed.has(`${order.id}-${index}`));
   const orders = allFinished ? state.orders.map((o) => (o.id === order.id ? transitionOrder(o, 'Delivering', 'completed', at) : o)) : state.orders;
@@ -361,6 +376,8 @@ export function workTickets(state) {
         status: order.status,
         type: order.type,
         name: line.name,
+        productId: line.id,
+        lineIndex: index,
         qty: line.qty,
         notes: ticketNotes(order),
       })),

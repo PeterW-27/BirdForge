@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { randomUUID } from 'node:crypto';
+import { raidView } from '../src/domain/raid.js';
 import { readFile, writeFile, rename, mkdir, appendFile } from 'node:fs/promises';
 import { readFileSync, rmSync, chmodSync } from 'node:fs';
 import path from 'node:path';
@@ -55,7 +57,9 @@ export function startServer(options = {}) {
   }
 
   function viewFor(role, owner) {
-    return role === 'smith' ? state : customerView(state, owner);
+    if (role !== 'smith') return customerView(state, owner);
+    const { raid, ...shared } = state;
+    return { ...shared, raidView: raidView(raid, null) };
   }
 
   function send(res, status, body, headers = {}) {
@@ -94,7 +98,7 @@ export function startServer(options = {}) {
     const replyKey = typeof action?.requestId === 'string' ? `${role}|${owner}|${action.requestId}` : null;
     if (replyKey && replies.has(replyKey)) return send(res, 200, { ...replies.get(replyKey), shared: viewFor(role, owner), version });
     const at = new Date().toISOString();
-    const outcome = applyAction(builtInCatalog, state, action, { role, owner, at });
+    const outcome = applyAction(builtInCatalog, state, action, { role, owner, at, raidSeed: randomUUID() });
     if (outcome.error) return send(res, 200, { error: outcome.error, shared: viewFor(role, owner), version });
     state = outcome.state;
     version += 1;
