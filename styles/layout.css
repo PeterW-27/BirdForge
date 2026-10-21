@@ -1,3 +1,4 @@
+/* page layout */
 .container { width: min(var(--page-max),calc(100% - 36px)); margin: auto; min-height: 65vh; padding: var(--space-6) 0 var(--space-7); }
 .site-header { position: sticky; top: 0; z-index: 30; background: var(--color-surface); border-bottom: 1px solid var(--color-line); }
 .header-inner { max-width: var(--page-max); margin: auto; min-height: var(--header-height); padding: 12px 18px; display: flex; align-items: center; gap: var(--space-5); }

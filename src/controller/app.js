@@ -1,4 +1,6 @@
 import { createBackup, parseBackup, MAX_BACKUP_BYTES } from '../domain/backup.js';
+import { captureUpdates } from '../domain/orb.js';
+import { mountOrb } from '../ui/components/orb.js';
 import { builtInCatalog } from '../data/catalog.js';
 import { addProduct, removeProduct, EXAMPLE_PRODUCT } from '../domain/products.js';
 import { loadState, saveState, resetState, storageAvailable, STORAGE_KEY } from '../data/storage.js';
@@ -21,7 +23,7 @@ const MAX_IMAGE_BYTES = 350000;
 const IMAGE_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp']);
 const SAVE_FAILED = 'Gunter could not save this in your browser (storage is full or blocked). Nothing was changed. Try again without a photo.';
 
-// initial setup when opening the webpage. Read stored data. 
+// opening the webpage and read data stored
 export function mountApp(documentRoot = document) {
   const main = documentRoot.getElementById('main');
   const modalRoot = documentRoot.getElementById('modal-root');
@@ -42,6 +44,7 @@ export function mountApp(documentRoot = document) {
   let toastTimer = null;
   let shownCartCount = null;
   let previewImageUrl = null;
+  let messenger = null;
 
   function notice(message) {
     toastRoot.textContent = message;
@@ -53,14 +56,16 @@ export function mountApp(documentRoot = document) {
     }, 3500);
   }
 
-  function commit(next, failureMessage = SAVE_FAILED) {
-    const restored = restoreState(next, builtInCatalog);
+  // save and render
+  function commit(next, failureMessage = SAVE_FAILED, capture = true, beforeRender = null) {
+    const restored = restoreState(capture ? captureUpdates(state, next) : next, builtInCatalog);
     if (persistent && !saveState(restored)) {
       notice(failureMessage);
       return false;
     }
     state = restored;
     catalog = [...builtInCatalog, ...state.addedProducts];
+    beforeRender?.();
     render();
     return true;
   }
@@ -70,6 +75,7 @@ export function mountApp(documentRoot = document) {
     return '<p class="storage-banner" role="status">This browser is not saving data, so orders will disappear when you close the page.</p>';
   }
 
+  // set previewImageUrl null
   function releasePreviewImage() {
     if (previewImageUrl) globalThis.URL?.revokeObjectURL?.(previewImageUrl);
     previewImageUrl = null;
@@ -113,9 +119,10 @@ export function mountApp(documentRoot = document) {
     search.closest('.search-field').hidden = role === 'smith';
     if (search.value !== ui.search) search.value = ui.search;
     documentRoot.title = `${VIEW_TITLES[ui.view] || 'Shop'} · Gunter's Forge`;
+    messenger?.render();
   }
 
-  // clear popup filled forms and write changes in cart.
+  // clear popup forms
   function closeModal() {
     if (!activeModal) return;
     activeModal = null;
@@ -125,9 +132,15 @@ export function mountApp(documentRoot = document) {
     returnFocus = null;
   }
 
+  // navigate and scroll to top
   function navigate(view) {
     if (!VIEWS.includes(view)) return;
     closeModal();
+    if (SMITH_VIEWS.includes(ui.view) && !SMITH_VIEWS.includes(view)) {
+      clearTimeout(toastTimer);
+      toastRoot.textContent = '';
+      toastRoot.classList.remove('toast-visible');
+    }
     ui.view = view;
     if (view !== 'orders') ui.lastOrder = null;
     if (view !== 'shop') ui.search = '';
@@ -135,6 +148,7 @@ export function mountApp(documentRoot = document) {
     globalThis.scrollTo?.({ top: 0, behavior: 'instant' });
   }
 
+  // open good detail page
   function openModal(id, mode = 'detail') {
     const product = catalog.find((item) => item.id === id);
     if (!product) return;
@@ -145,6 +159,7 @@ export function mountApp(documentRoot = document) {
     modalRoot.querySelector('.modal-close')?.focus();
   }
 
+  // view reference image
   function openReference(orderId) {
     const order = state.orders.find((item) => item.id === orderId);
     if (!order?.referenceImage) return;
@@ -155,6 +170,7 @@ export function mountApp(documentRoot = document) {
     modalRoot.querySelector('.modal-close')?.focus();
   }
 
+  // change item quantity on shop page
   function changeCart(id, qty) {
     const before = state.cart[id] || 0;
     const result = changeQuantity(catalog, state, id, qty);
@@ -167,6 +183,7 @@ export function mountApp(documentRoot = document) {
     if (before === 0 && qty > 0) notice(`${catalog.find((p) => p.id === id)?.name || 'Item'} added to your satchel.`);
   }
 
+  // show and clear form and field errors
   function fieldErrorFor(control) {
     return control.closest('label')?.querySelector('.field-error') || null;
   }
@@ -217,6 +234,7 @@ export function mountApp(documentRoot = document) {
     notice(message);
   }
 
+  // check form input when submitting form
   function validateForm(form) {
     clearFormErrors(form);
     const invalid = firstInvalidControl(form);
@@ -233,7 +251,7 @@ export function mountApp(documentRoot = document) {
     }
   }
 
-  // verify order detail and jump to order page after filling form. 
+  // verify order detail and jump to order page after filling form
   function finishOrder(result, form) {
     if (result.error) {
       showFormError(form, result.error);
@@ -281,6 +299,7 @@ export function mountApp(documentRoot = document) {
     return encoded;
   }
 
+  // submit form with image
   async function submitWithImage(form, placeOrder) {
     const button = form.querySelector('button[type="submit"]');
     if (button?.disabled) return;
@@ -297,7 +316,7 @@ export function mountApp(documentRoot = document) {
     }
   }
 
-  // read and store uploaded image.
+  // submit bulk or commission orders
   function submitDirect(form) {
     return submitWithImage(form, (data, image) => {
       data.recycle = 'no';
@@ -305,10 +324,12 @@ export function mountApp(documentRoot = document) {
     });
   }
 
+  // submit repair orders
   function submitRepair(form) {
     return submitWithImage(form, (data, image) => placeRepairOrder(state, data, nextOrderId(state.orders), new Date().toISOString(), image));
   }
 
+  // submit add product form from Forge Board
   async function submitProduct(form) {
     const button = form.querySelector('button[type="submit"]');
     if (button?.disabled) return;
@@ -332,6 +353,7 @@ export function mountApp(documentRoot = document) {
     }
   }
 
+  // submit quote
   function submitQuote(form) {
     const result = setQuote(state, form.dataset.id, new FormData(form).get('quote'));
     if (result.error) {
@@ -341,7 +363,7 @@ export function mountApp(documentRoot = document) {
     if (commit(result.state)) notice(`Quote saved for ${form.dataset.id}. The customer can see it under My Orders.`);
   }
 
-  // price calculation, (price might change later). 
+  // price calculation for recycling and bulk
   function updateEstimates() {
     const subtotal = totalCents(catalog, state);
     const cartTotal = documentRoot.getElementById('cart-estimate');
@@ -357,6 +379,7 @@ export function mountApp(documentRoot = document) {
       : `Enter a whole number from ${MIN_BULK} to ${MAX_BULK}.`;
   }
 
+  // search scrollto
   function showResults() {
     globalThis.scrollTo?.({ top: 0, behavior: 'instant' });
     const heading = documentRoot.getElementById('results-heading');
@@ -364,6 +387,7 @@ export function mountApp(documentRoot = document) {
     else searchBox().blur();
   }
 
+  // confirm search
   function submitSearch() {
     const query = searchBox().value.trim();
     ui.search = searchBox().value;
@@ -383,6 +407,7 @@ export function mountApp(documentRoot = document) {
     showResults();
   }
 
+  // click on search suggestions
   function searchFor(query) {
     ui.search = query;
     ui.view = 'shop';
@@ -390,6 +415,7 @@ export function mountApp(documentRoot = document) {
     showResults();
   }
 
+  // change product review card when there are changes when adding products
   function updateProductPreview() {
     const form = documentRoot.getElementById('add-product');
     const box = documentRoot.getElementById('product-preview');
@@ -397,6 +423,7 @@ export function mountApp(documentRoot = document) {
     box.innerHTML = productPreview(Object.fromEntries(new FormData(form).entries()), previewImageUrl);
   }
 
+  // examples when adding products 
   function fillProductExample() {
     const form = documentRoot.getElementById('add-product');
     if (!form) return;
@@ -408,6 +435,7 @@ export function mountApp(documentRoot = document) {
     form.elements.name.focus();
   }
 
+  // try to remove product
   function removeAddedProduct(id) {
     const product = state.addedProducts.find((item) => item.id === id);
     if (!product) return;
@@ -420,6 +448,7 @@ export function mountApp(documentRoot = document) {
     if (commit(result.state)) notice(`${product.name} was removed from the shop.`);
   }
 
+  //check input when adding product
   function checkFileInput(input) {
     clearFieldError(input);
     const file = input.files?.[0];
@@ -434,6 +463,7 @@ export function mountApp(documentRoot = document) {
     updateProductPreview();
   }
 
+  //backup confirmation
   function confirmBackup() {
     if (savingBackup) return;
     if (!activeModal) returnFocus = documentRoot.activeElement;
@@ -451,6 +481,7 @@ export function mountApp(documentRoot = document) {
     input.focus();
   }
 
+  //backup
   async function exportBackup() {
     if (savingBackup || activeModal?.mode !== 'backup') return;
     let name = documentRoot.getElementById('backup-name').value.trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 180);
@@ -508,6 +539,7 @@ export function mountApp(documentRoot = document) {
     }
   }
 
+  //choose backup to restore
   async function chooseBackup(input) {
     const request = ++backupRead;
     const file = input.files?.[0];
@@ -522,7 +554,7 @@ export function mountApp(documentRoot = document) {
       if (request !== backupRead) return;
       if (result.error) { notice(result.error); return; }
       if (!globalThis.confirm?.('Restore this backup? This replaces all current browser data.')) return;
-      if (!commit(result.state, 'Gunter could not save this backup in your browser (storage is full or blocked). Current data was kept.')) return;
+      if (!commit(result.state, 'Gunter could not save this backup in your browser (storage is full or blocked). Current data was kept.', false, () => messenger?.reset())) return;
       backupRead += 1;
       closeModal();
       Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false, showDelivered: false });
@@ -533,10 +565,12 @@ export function mountApp(documentRoot = document) {
     }
   }
 
+  // reset data
   function resetDemo() {
     if (globalThis.confirm && !globalThis.confirm('Clear all orders, the satchel and saved items in this browser?')) return;
     backupRead += 1;
     resetState();
+    messenger?.reset();
     state = makeState();
     catalog = [...builtInCatalog];
     if (persistent) saveState(state);
@@ -545,6 +579,7 @@ export function mountApp(documentRoot = document) {
     notice('Demo data cleared.');
   }
 
+  // actions
   function handleAction(action, id, button, event) {
     switch (action) {
       case 'export-backup':
@@ -663,7 +698,7 @@ export function mountApp(documentRoot = document) {
     }
   }
 
-  // handling CLICK/CHANGE/SUBMIT/INPUT events. 
+  // handling click/change/submit/input events 
   documentRoot.addEventListener('click', (event) => {
     const view = event.target.closest('[data-view]');
     if (view) {
@@ -756,7 +791,7 @@ export function mountApp(documentRoot = document) {
     }
   });
 
-  // keyboard controls. 
+  // keyboard controls
   documentRoot.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && event.target.id === 'backup-name') {
       event.preventDefault();
@@ -803,12 +838,20 @@ export function mountApp(documentRoot = document) {
     if (activeModal?.mode === 'detail') openModal(activeModal.id, 'detail');
   });
 
+  // click on brand
   documentRoot.getElementById('brand').addEventListener('click', (event) => {
     event.preventDefault();
     ui.search = '';
     navigate('shop');
   });
 
+  // orb
+  messenger = mountOrb({ documentRoot, getState: () => state, getView: () => ui.view,
+    saveOrb: (orb) => commit({ ...state, orb }, SAVE_FAILED, false),
+    navigate: (view) => {
+      if (view === 'admin') Object.assign(ui, { adminTab: 'orders', adminFilter: 'All', showDelivered: true });
+      navigate(view);
+    }, notify: notice });
   render();
   if (!persistent) notice('This browser is not saving data. Orders will disappear when you close the page.');
 
@@ -819,6 +862,7 @@ export function mountApp(documentRoot = document) {
     render,
     reset: () => {
       resetState();
+      messenger?.reset();
       state = loadState(builtInCatalog);
       catalog = [...builtInCatalog, ...state.addedProducts];
       render();

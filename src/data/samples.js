@@ -17,7 +17,7 @@ const SAMPLE_REQUESTS = Object.freeze([
   },
 ]);
 
-// generate 3 types of sample data for testing. 
+// generate 3 types of sample data for testing
 export function addSampleOrders(catalog, state, now = Date.now()) {
   let next = state;
   SAMPLE_REQUESTS.forEach((request, index) => {

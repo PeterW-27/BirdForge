@@ -4,7 +4,7 @@ import { PRICE_ERROR } from './prices.js';
 const maxImageLength = 510000;
 const imagePattern = /^data:image\/(?:png|jpeg|webp);base64,/;
 
-// validate restored added product. 
+// validate restored added product
 export function validAddedProduct(product) {
   return product && typeof product === 'object'
     && /^product-\d+$/.test(product.id)
@@ -21,7 +21,7 @@ export function validAddedProduct(product) {
     && (product.image === '' || (typeof product.image === 'string' && imagePattern.test(product.image) && product.image.length <= maxImageLength));
 }
 
-// set up list of added products. 
+// set up list of added products
 export function addProduct(state, input, image = null) {
   const name = String(input.name ?? '').trim();
   const group = String(input.group ?? '');
@@ -45,6 +45,7 @@ export function addProduct(state, input, image = null) {
   return { product, state: { ...state, addedProducts: [...(state.addedProducts || []), product] } };
 }
 
+// example added product
 export const EXAMPLE_PRODUCT = Object.freeze({
   name: 'Training Sword',
   group: 'Sword',
@@ -59,6 +60,7 @@ export function productInUse(state, id) {
   return (state.orders || []).some((order) => order.items.some((line) => line.id === id));
 }
 
+// remove product not in use
 export function removeProduct(state, id) {
   const added = state.addedProducts || [];
   const product = added.find((item) => item.id === id);

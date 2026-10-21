@@ -1,4 +1,4 @@
-# Gunter's Forge Version 5.11
+# Gunter's Forge Version 5.14.3
 
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
@@ -10,19 +10,17 @@ Gunter uses Forge Board to review orders, set prices, and update their status. W
 
 The app is written in HTML, CSS, and JavaScript, with layouts for phones and desktop browsers. This version runs locally and stores data in the browser. Orders and payments are for demonstration only.
 
-### New in V5.11
+### New in V5.14
 
-- **Order history:** Expand Status history in My Orders or Forge Board to see recorded status changes and times. Missing times in older orders are shown as unknown.
-- **Backup:** Select Backup in the footer, confirm the filename, then save through the system save dialog, device share menu, or browser download. Available save locations depend on the browser and device.
-- **Restore:** Select Restore in the footer, choose a backup JSON file (up to 10 MB), and confirm replacement of current data. Invalid files are rejected; failed storage writes preserve existing data.
-
-Backups include orders, history, added products, favorites, satchel contents, completed tickets, and saved images.
+- **Messenger Orb:** A floating orb opens one chat-style popup for order updates and asynchronous messages to Gunter. Opening the orb immediately marks all received messages as read. Conversations stay in this browser, with time dividers between sessions; drafts are kept while navigating or closing the popup.
+- **Order notifications:** Customer order status changes and quotes create saved notifications. Large top banners appear for four seconds and slide upward, survive page navigation, and link to the matching order. Two notifications appear separately; three or more show one notification plus an “And ... more notifications.” banner that opens the orb. Sample orders never notify customers.
+- **Forge Board Messages:** Gunter can read customer conversations and reply under Messages, with unread counts and order context. Replies reach the customer when they return to a customer page or reopen the app. This remains a browser-local demonstration without cross-device messaging.
 
 ## Setup instructions
 
 ### Open the standalone version
 
-Extract the project ZIP and open `dist/Gunters_Forge_V5_11_Standalone.html` in a modern browser. This file includes the code, styles, and images, so it works offline without installing anything else. Use the same browser and file location to keep working with the same saved demo data.
+Extract the project ZIP and open `dist/Gunters_Forge_V5_14_3_Standalone.html` in a modern browser. This file includes the code, styles, and images, so it works offline without installing anything else. Use the same browser and file location to keep working with the same saved demo data.
 
 ### Run the source version
 
@@ -52,7 +50,7 @@ With Python 3.9 or newer, run this from the project root:
 python3 tools/build_standalone.py
 ```
 
-On Windows, use `py tools/build_standalone.py`. This replaces `dist/Gunters_Forge_V5_11_Standalone.html` with a build of the current source, styles, and assets.
+On Windows, use `py tools/build_standalone.py`. This replaces `dist/Gunters_Forge_V5_14_3_Standalone.html` with a build of the current source, styles, and assets.
 
 ## Usage guide
 

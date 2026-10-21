@@ -13,6 +13,7 @@ function validText(value, max) {
   return typeof value === 'string' && value.length <= max;
 }
 
+// validate backup
 function validOrderFields(order) {
   if (!order || !validText(order.id, 80) || !order.id.length || !validText(order.createdAt, 80)) return false;
   if (!order.customer || !validText(order.customer.name, 80) || !validText(order.customer.email, 120)) return false;

@@ -3,6 +3,7 @@ import { text } from './shared.js';
 
 const LABELS = Object.freeze({ placed: 'Order placed', manual: 'Status updated', quote: 'Quote saved', completed: 'All work tickets completed', legacy: 'Previously saved status' });
 
+// status history list
 export function statusHistory(order) {
   const entries = orderHistory(order);
   return `<details class="status-history"><summary>Status history (${entries.length})</summary>

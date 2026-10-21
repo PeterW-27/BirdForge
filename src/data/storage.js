@@ -4,7 +4,7 @@ export const STORAGE_KEY = 'gunters-forge-v54-demo';
 
 const getStorage = (storage) => storage ?? globalThis.localStorage;
 
-// test localstorage availability. Try restoring data. 
+// test localstorage availability and try restoring data
 export function storageAvailable(storage = null) {
   try {
     const target = getStorage(storage);
@@ -17,6 +17,7 @@ export function storageAvailable(storage = null) {
   }
 }
 
+// loading data
 export function loadState(catalog, storage = null) {
   try {
     return restoreState(JSON.parse(getStorage(storage).getItem(STORAGE_KEY)), catalog);
@@ -25,6 +26,7 @@ export function loadState(catalog, storage = null) {
   }
 }
 
+// saving data
 export function saveState(state, storage = null) {
   try {
     getStorage(storage).setItem(STORAGE_KEY, JSON.stringify(state));
@@ -34,7 +36,7 @@ export function saveState(state, storage = null) {
   }
 }
 
-// try to delete website storage. 
+// try to delete website storage
 export function resetState(storage = null) {
   try {
     getStorage(storage).removeItem(STORAGE_KEY);

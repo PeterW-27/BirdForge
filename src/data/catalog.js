@@ -1,5 +1,6 @@
 export const groups = Object.freeze(['Sword', 'Plate Armor', 'Chain Mail', 'Cooking Pot']);
 
+// images
 const images = Object.freeze({
   'sword-short': 'assets/products/sword-short.webp',
   'sword-arming': 'assets/products/sword-arming.webp',
@@ -16,7 +17,7 @@ const images = Object.freeze({
   'cookware-commission': 'assets/products/cookware-commission.webp',
 });
 
-// structure for any goods. 
+// structure for normal goods
 const item = (id, name, group, priceCents, size, short, details, specs) => ({
   id,
   name,
@@ -31,7 +32,7 @@ const item = (id, name, group, priceCents, size, short, details, specs) => ({
   type: 'standard',
 });
 
-// commission good data structure. 
+// commission good data structure
 const commission = (id, name, groups, short, details) => ({
   id,
   name,
@@ -46,6 +47,7 @@ const commission = (id, name, groups, short, details) => ({
   type: 'custom',
 });
 
+// description
 export const catalog = Object.freeze([
   item('sword-short', 'Short Sword', 'Sword', 6800, 'Short',
     'A light, quick blade for travellers and town watchmen.',

@@ -1,5 +1,6 @@
 const STOP_WORDS = new Set(['a', 'an', 'the', 'of', 'for', 'and', 'with', 'to', 'in', 'my', 'some']);
 
+// search synonyms
 const SYNONYMS = Object.freeze({
   armour: ['armor'],
   chainmail: ['chain', 'mail'],
@@ -14,24 +15,27 @@ const SYNONYMS = Object.freeze({
   bespoke: ['commission'],
 });
 
+// page shortcuts
 const PAGE_SHORTCUTS = Object.freeze([
   { view: 'repairs', label: 'Repairs', words: ['repair', 'repairs', 'fix', 'broken', 'mend'] },
   { view: 'orders', label: 'My Orders', words: ['order', 'orders', 'my orders', 'track', 'tracking', 'queue', 'status'] },
   { view: 'cart', label: 'Satchel', words: ['satchel', 'cart', 'basket', 'checkout'] },
 ]);
 
+// search relatability
 const SCORES = Object.freeze({
   name: { exact: 100, prefix: 70, fuzzy: 50 },
   other: { exact: 40, prefix: 25, fuzzy: 15 },
   phraseBonus: 50,
 });
 
+// singularize
 export function singular(word) {
   if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
   return word;
 }
 
-// prepare search string and search the webpage every input. 
+// normalize input
 export function normalizeWords(value) {
   return String(value ?? '')
     .toLowerCase()
@@ -43,12 +47,14 @@ export function normalizeWords(value) {
     .map(singular);
 }
 
+// search matching
 export function queryWords(query) {
   return normalizeWords(query)
     .filter((word) => !STOP_WORDS.has(word))
     .flatMap((word) => SYNONYMS[word] || [word]);
 }
 
+// fuzzy search distance calculation
 export function editDistance(a, b, limit = Infinity) {
   if (Math.abs(a.length - b.length) > limit) return limit + 1;
   let beforePrevious = [];
@@ -71,6 +77,7 @@ export function editDistance(a, b, limit = Infinity) {
 
 export const allowedTypos = (word) => (word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0);
 
+// return matchkind
 function matchKind(queryWord, word) {
   if (word === queryWord) return 'exact';
   if (word.startsWith(queryWord)) return 'prefix';
@@ -79,6 +86,7 @@ function matchKind(queryWord, word) {
   return null;
 }
 
+//searchable fields
 function productFields(product) {
   return {
     name: normalizeWords(product.name),
@@ -86,6 +94,7 @@ function productFields(product) {
   };
 }
 
+// find match
 function bestMatch(queryWord, fields) {
   let best = { score: 0, nameWord: null };
   for (const field of ['name', 'other']) {
@@ -99,6 +108,7 @@ function bestMatch(queryWord, fields) {
   return best;
 }
 
+// product scores to query
 export function scoreProduct(product, query) {
   const words = queryWords(query);
   if (!words.length) return { score: 0, matched: new Set() };
@@ -138,7 +148,7 @@ export function pageForQuery(query) {
   return null;
 }
 
-// generate search dictionary. 
+// search suggestions
 export function suggestQuery(products, query) {
   const vocabulary = [...new Set(products.flatMap((p) => normalizeWords(`${p.name} ${p.groups.join(' ')}`)))];
   const words = normalizeWords(query).filter((word) => !STOP_WORDS.has(word));

@@ -1,6 +1,6 @@
 # AI Usage Disclosure
 
-Project: Gunter's Forge, V1–V5.10  
+Project: Gunter's Forge, V1–V5.14.3  
 Last updated: October 19, 2026
 
 ## Scope of assistance
@@ -10,7 +10,7 @@ AI tools were used to support the development of Gunter's Forge through code dra
 ## Tools and records
 
 - OpenAI ChatGPT and Codex supported code drafting and revisions, interface changes, debugging, build tooling, and automated tests.
-- Anthropic Claude / Claude Code assisted with code changes and troubleshooting during V5.6 and V5.7.
+- Anthropic Claude / Claude Code assisted with code changes and troubleshooting during V5.6, V5.7 and later updates.
 - ChatGPT was also used to generate the product images and the crest design, which were reviewed and selected by the team.
 
 ## Uses during development
@@ -24,7 +24,7 @@ AI tools were used to support the development of Gunter's Forge through code dra
 | Code review and troubleshooting | Reviewing product creation and data validation and helping investigate implementation issues. |
 | Documentation | Assistance with the README file and explanations of existing code. |
 
-## Development record — V1 to V5.10
+## Development record — V1 to V5.14.3
 
 The earlier prototypes were named Nova Market. The project became Gunter's Forge at V4. Dates are given only where supported by the available project records.
 
@@ -95,6 +95,26 @@ Claude Code assisted with this revision. Form errors now appear under the field 
 ### V5.11 — October 20, 2026
 
 OpenAI Codex assisted with implementing order status history, footer Backup/Restore controls, save confirmation and filename entry, system save/share options, and file validation. 
+
+### V5.12 — Order updates, estimated dates, and workshop navigation
+
+Codex assisted with adding browser-local order update messages and unread indicators. 
+
+### V5.13 — Orb messages, ready estimates and forge theme
+
+Claude Code assisted with this revision. It added the Orb page, which records a message whenever an order is received, priced, forged, finished or delivered, shows unread counts, updates other open tabs and can show system notifications. The interface was restyled with a dark iron header, ember highlights, parchment surfaces, copper-orange accents, and gold details. Automated tests were added for messages.
+
+### V5.14 — October 20, 2026
+
+OpenAI Codex assisted with implementing the team's Messenger Orb design: mobile-first top notification banners, a single chat-style orb popup, immediate read marking when opened, persistent order updates and local asynchronous messages, and a Forge Board Messages inbox with replies and unread counts. Sample-order notifications were excluded. Assistance also covered notification persistence, backup compatibility, automated checks, responsive layout review, and the standalone build. The team specified the interaction behavior and revised the design before implementation.
+
+### V5.14.2 — October 20, 2026
+
+OpenAI Codex assisted with adjustments on the theme of the V5.14 application. The image editing tool of Codexassisted with producing a dark-gold anvil favicon. Assistance also covered the standalone build, regression checks, and responsive visual review. The team specified the visual reference and the boundaries of the revision. 
+
+### V5.14.3 — October 20, 2026
+
+OpenAI Codex assisted with minor adjustments on theme details. This include the color for background and buttons, and a crest image was added to the homepage. 
 
 ## Project direction and review
 

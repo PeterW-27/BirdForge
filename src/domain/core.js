@@ -1,3 +1,4 @@
+import { normalizeOrb } from './orb.js';
 import { REPAIR_STATUSES, REPAIR_TICKET_STATUSES, repairItemIssue } from './repairs.js';
 import { validAddedProduct } from './products.js';
 import { PRICE_ERROR } from './prices.js';
@@ -15,13 +16,14 @@ export const MAX_QUOTE_CENTS = 10000000;
 export const IMAGE_DATA_PATTERN = /^data:image\/(?:png|jpeg|webp);base64,/;
 export const MAX_IMAGE_DATA_LENGTH = 510000;
 
-// handles status and money for repair and custom orders. 
+// special status
 export const statusesFor = (type) => {
   if (type === 'repair') return REPAIR_STATUSES;
   if (type === 'custom') return COMMISSION_STATUSES;
   return STATUSES;
 };
 
+// special ticket status
 export const ticketStatusesFor = (type) => {
   if (type === 'repair') return REPAIR_TICKET_STATUSES;
   if (type === 'custom') return COMMISSION_TICKET_STATUSES;
@@ -30,14 +32,17 @@ export const ticketStatusesFor = (type) => {
 
 export const isQuotedType = (type) => type === 'custom' || type === 'repair';
 
+// money format normalizing
 export const money = (cents) => {
   if (cents === null || cents === undefined) return '';
   return (cents / 100).toFixed(2) + ' crowns';
 };
 
+// esacapehtml
 export const escapeHTML = (value) =>
   String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
+// order status history
 export function orderHistory(order) {
   if (!Array.isArray(order.statusHistory) || !order.statusHistory.length) {
     return [{ status: order.status, at: order.status === 'Placed' ? order.createdAt : null, reason: order.status === 'Placed' ? 'placed' : 'legacy' }];
@@ -61,6 +66,7 @@ export function makeState() {
   return { cart: {}, orders: [], favorites: [], completedTickets: [], addedProducts: [] };
 }
 
+// validate image and lines
 const isSafeImage = (value) => typeof value === 'string' && IMAGE_DATA_PATTERN.test(value) && value.length <= MAX_IMAGE_DATA_LENGTH;
 
 function isValidLine(order, line, productIds) {
@@ -71,7 +77,7 @@ function isValidLine(order, line, productIds) {
   return order.type === 'repair' ? line.id === 'repair-item' : productIds.has(line.id);
 }
 
-// check locally saved orders and restore to webpage storage. 
+// check locally saved orders and restore to webpage storage
 function isValidOrder(order, productIds) {
   if (!order || typeof order.id !== 'string' || order.id.length > 80) return false;
   if (!Number.isFinite(Date.parse(order.createdAt))) return false;
@@ -121,10 +127,11 @@ export function restoreState(raw, catalog) {
     const validTicketIds = new Set(fresh.orders.flatMap((o) => o.items.map((_, i) => `${o.id}-${i}`)));
     fresh.completedTickets = [...new Set(raw.completedTickets.filter((id) => typeof id === 'string' && validTicketIds.has(id)))];
   }
+  if (raw.orb !== undefined) fresh.orb = normalizeOrb(raw.orb, fresh.orders);
   return fresh;
 }
 
-// cart (satchel) management.
+// cart (satchel) management
 export function nextOrderId(orders) {
   const highest = orders.reduce((max, order) => {
     const match = /^GF-(\d{1,9})$/.exec(order.id);
@@ -153,7 +160,7 @@ export function changeQuantity(catalog, state, id, next) {
   return { state: { ...state, cart } };
 }
 
-//Order placing and customer info form filling. 
+// order placing and customer info form filling 
 export function customerIssue(input) {
   const name = String(input.name ?? '').trim();
   const email = String(input.email ?? '').trim();
@@ -170,6 +177,7 @@ export function recyclingIssue(input) {
   return '';
 }
 
+// clean forms
 function cleanCustomer(input) {
   return { name: String(input.name).trim(), email: String(input.email).trim(), address: String(input.address ?? '').trim() };
 }
@@ -188,6 +196,7 @@ function duplicateIssue(state, id) {
   return state.orders.some((order) => order.id === id) ? 'This order number is already in use. Please try again.' : '';
 }
 
+// place cart order and direct order
 export function placeCartOrder(catalog, state, input, id, createdAt) {
   if (!cartCount(catalog, state)) return { error: 'Your satchel is empty.' };
   const issue = customerIssue(input) || recyclingIssue(input) || referenceIdIssue(id, createdAt) || duplicateIssue(state, id);
@@ -249,7 +258,7 @@ export function placeDirectOrder(catalog, state, productId, mode, input, id, cre
   return { order, state: { ...state, orders: [...state.orders, order] } };
 }
 
-// create and save repair order data. 
+// create and save repair order data
 export function placeRepairOrder(state, input, id, createdAt, referenceImage = null) {
   const issue = customerIssue(input) || repairItemIssue(input);
   if (issue) return { error: issue };
@@ -272,7 +281,7 @@ export function placeRepairOrder(state, input, id, createdAt, referenceImage = n
   return { order, state: { ...state, orders: [...state.orders, order] } };
 }
 
-// 
+// updating status
 export function updateStatus(state, id, status, at = new Date().toISOString()) {
   const previous = state.orders.find((order) => order.id === id);
   if (!previous) return { error: 'Order not found.' };
@@ -291,6 +300,7 @@ export function updateStatus(state, id, status, at = new Date().toISOString()) {
   };
 }
 
+// formatting crowns
 export function parseCrowns(value) {
   const textValue = String(value ?? '').trim();
   if (!/^\d{1,6}(?:\.\d{1,2})?$/.test(textValue)) return null;
@@ -298,7 +308,7 @@ export function parseCrowns(value) {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
 }
 
-// handling price setting for Commission and Repair, and update status to Processing. 
+// handling price setting for Commission and Repair, and update status to processing
 export function setQuote(state, id, crowns, at = new Date().toISOString()) {
   const order = state.orders.find((o) => o.id === id);
   if (!order) return { error: 'Order not found.' };
@@ -308,6 +318,7 @@ export function setQuote(state, id, crowns, at = new Date().toISOString()) {
   return { state: { ...state, orders: state.orders.map((o) => (o.id === id ? { ...transitionOrder(o, o.type === 'custom' && ['Placed', 'Assessing'].includes(o.status) ? 'Processing' : o.status, 'quote', at), totalCents: cents } : o)) } };
 }
 
+// number of different orders
 export function orderStats(state) {
   return {
     total: state.orders.length,
@@ -319,7 +330,7 @@ export function orderStats(state) {
   };
 }
 
-// locate the current ending ticket in the forge board order list and mark finished orders' status Delivering. 
+// locate the current ending ticket in the forge board order list and mark finished orders' status Delivering
 export function toggleTicket(state, id, at = new Date().toISOString()) {
   const order = state.orders.find((o) => o.items.some((_, index) => `${o.id}-${index}` === id));
   if (!order) return { error: 'Work ticket not found.' };
@@ -337,6 +348,7 @@ function ticketNotes(order) {
   return [order.description, order.notes, recycling].filter(Boolean).join(' · ');
 }
 
+// work tickets
 export function workTickets(state) {
   const completed = state.completedTickets || [];
   const tickets = state.orders
@@ -362,6 +374,7 @@ export function workTickets(state) {
   return tickets;
 }
 
+// forge queue order
 export function forgeQueue(state) {
   const entries = [];
   for (const ticket of workTickets(state)) {
@@ -372,7 +385,7 @@ export function forgeQueue(state) {
   return entries;
 }
 
-// turn the data stored in forge board into queueing information for customer, or show the status when it's not in tickets. 
+// turn the data stored in forge board into queueing information for customer view, or show the status when it's not in tickets
 export function queueInfo(state, orderId) {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return null;

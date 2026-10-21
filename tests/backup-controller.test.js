@@ -16,15 +16,22 @@ function environment(initial = seed()) {
   const nodes = new Map();
   const values = new Map([[key, JSON.stringify(initial)]]);
   const fixture = { failWrites: false, confirmResult: true, confirmations: [], downloads: [], blobs: [], listeners };
-  const node = () => ({ innerHTML: '', textContent: '', hidden: false, value: '',
+  const node = () => ({ innerHTML: '', textContent: '', hidden: false, value: '', children: [], contains: () => false,
     classList: { add() {}, remove() {}, toggle() {} }, dataset: {},
     addEventListener() {}, append() {}, remove() {}, click() {}, setAttribute() {}, removeAttribute() {},
-    querySelectorAll: () => [], querySelector: () => null,
+    querySelectorAll: () => [], querySelector(selector) {
+      if (!this.parts) this.parts = new Map();
+      if (!this.parts.has(selector)) this.parts.set(selector, node());
+      return this.parts.get(selector);
+    },
     closest: () => ({ hidden: false }), focus() {}, scrollIntoView() {} });
   const document = { activeElement: null, body: node(),
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); },
     querySelectorAll: () => [], querySelector: () => null,
-    addEventListener(type, fn) { listeners[type] = fn; },
+    addEventListener(type, fn) {
+      const previous = listeners[type];
+      listeners[type] = previous ? (event) => { previous(event); fn(event); } : fn;
+    },
     createElement() { const link = node(); link.click = () => fixture.downloads.push(link.download); return link; } };
   const storage = {
     getItem: (id) => values.get(id) ?? null,
@@ -231,7 +238,7 @@ test('opening another file chooser cancels a stale asynchronous backup read', as
 
 test('rebuilt standalone script boots and renders the same feature controls', () => {
   const fixture = environment();
-  const html = readFileSync(new URL('../dist/Gunters_Forge_V5_11_Standalone.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../dist/Gunters_Forge_V5_14_3_Standalone.html', import.meta.url), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   runInNewContext(script, fixture.globals());
   const button = { dataset: { view: 'admin' } };
@@ -244,3 +251,21 @@ test('rebuilt standalone script boots and renders the same feature controls', ()
   assert.match(footer, /restore-backup/);
   assert.match(footer, /backup-file/);
 });
+
+test('a failed status save creates neither a changed order nor a ghost notification', async () => mounted(async (fixture, app) => {
+  app.navigate('admin');
+  const before = fixture.values.get(key);
+  fixture.failWrites = true;
+  const target = { id: '', value: 'Processing', dataset: { id: 'GF-0001' }, matches: (selector) => selector === 'select[data-action="status"]' };
+  fixture.listeners.change({ target });
+  assert.equal(fixture.values.get(key), before);
+  assert.equal(app.getState().orders[0].status, 'Placed');
+  assert.equal(app.getState().orb, undefined);
+  fixture.failWrites = false;
+  fixture.listeners.change({ target });
+  const saved = JSON.parse(fixture.values.get(key));
+  assert.equal(saved.orders[0].status, 'Processing');
+  assert.equal(saved.orb.messages.length, 1);
+  assert.equal(saved.orb.messages[0].shown, false);
+  assert.equal(saved.orb.messages[0].read, false);
+}));

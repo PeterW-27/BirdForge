@@ -13,6 +13,7 @@ function matchesCategory(product, category) {
   return product.groups.includes(category);
 }
 
+//render results
 export function searchResults(state, ui, activeCatalog = catalog) {
   const pool = activeCatalog.filter((p) => matchesCategory(p, ui.category) && (!ui.savedOnly || (p.type === 'standard' && state.favorites.includes(p.id))));
   const query = ui.search.trim();

@@ -1,7 +1,7 @@
 export const REPAIR_STATUSES=Object.freeze(['Placed','Awaiting Drop-off','Assessing','Processing','Delivering','Delivered']);
 export const REPAIR_TICKET_STATUSES=Object.freeze(['Processing']);
 export const MAX_REPAIR_QUANTITY=99;
-// check repair order name, return null if ok. 
+// repair item form
 export function repairItemIssue(input){
   const item=String(input.itemName??'').trim();
   const damage=String(input.damage??'').trim();

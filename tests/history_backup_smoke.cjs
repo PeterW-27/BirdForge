@@ -26,7 +26,7 @@ async function run() {
   try {
     browser = await chromium.launch(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE, headless: true } : { headless: true });
     const base = `http://127.0.0.1:${server.address().port}`;
-    for (const entry of ['index.html', 'dist/Gunters_Forge_V5_11_Standalone.html']) {
+    for (const entry of ['index.html', 'dist/Gunters_Forge_V5_14_3_Standalone.html']) {
       const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1350, height: 900 } });
       await context.addInitScript(() => {
         Object.defineProperty(window, 'showSaveFilePicker', { value: undefined });
