@@ -2,6 +2,8 @@
 
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
+Live demo: <https://birdforge.shop>
+
 ## Project overview
 
 Birdforge is the shop application for Gunter, the blacksmith of Mautern. Customers can order swords, plate armor, chain mail, and cooking pots, then check their place on his work list. They can also request custom pieces or repairs.
@@ -136,7 +138,7 @@ All three of us worked on the project through AI-assisted coding. Our main areas
 | --- | --- |
 | Yuzhe Wang | Order and workshop management logic, plus parts of the UI. |
 | Zilu Niu | System iteration and interface design. |
-| Lin Ma | Image generation, artwork, and text editing. |
+| Lin Ma | Image generation and the online server. |
 
 ## Project structure
 
