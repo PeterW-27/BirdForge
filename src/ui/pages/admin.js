@@ -6,6 +6,7 @@ import { PRICE_PATTERN, PRICE_ERROR } from '../../domain/prices.js';
 import { isSampleOrder } from '../../data/samples.js';
 import { heading, emptyState, text, price, statusBadge, extensionPanel, typeLabel, referenceButton } from '../components/shared.js';
 import { productCard } from '../components/product-card.js';
+import { reportsPanel } from './reports.js';
 
 // stats for forge board
 function statsPanel(state) {
@@ -148,7 +149,7 @@ function demoTools() {
 
 // forge board page rendering
 export function adminPage(state, ui, features = [], activeCatalog = catalog) {
-  const tabs = [{ id: 'orders', title: 'Orders' }, { id: 'messages', title: 'Messages' }, ...features.map((f) => ({ id: 'ext:' + f.id, title: f.title }))];
+  const tabs = [{ id: 'orders', title: 'Orders' }, { id: 'messages', title: 'Messages' }, { id: 'reports', title: 'Reports' }, ...features.map((f) => ({ id: 'ext:' + f.id, title: f.title }))];
   const selected = features.find((f) => 'ext:' + f.id === ui.adminTab);
   const tabBar = tabs.length > 1
     ? `<nav class="tabs" aria-label="Forge board tabs">${tabs.map((t) => `<button type="button" data-action="admin-tab" data-id="${text(t.id)}" class="${ui.adminTab === t.id ? 'is-active' : ''}">${text(t.title)}</button>`).join('')}</nav>`
@@ -156,5 +157,5 @@ export function adminPage(state, ui, features = [], activeCatalog = catalog) {
   return `${heading("Gunter's workshop", 'Forge Board', 'Every order with customer details, prices and status. Work Tickets shows only the work to do.')}
     ${statsPanel(state)}
     ${tabBar}
-    ${ui.adminTab === 'messages' ? '<section class="surface" id="forge-messages" aria-label="Messages"></section>' : `${productForm(state, ui)}${selected ? extensionPanel(selected, { state, catalog: activeCatalog }) : orderList(state, ui)}${demoTools()}`}`;
+    ${ui.adminTab === 'reports' ? reportsPanel(state, ui) : ui.adminTab === 'messages' ? '<section class="surface" id="forge-messages" aria-label="Messages"></section>' : `${productForm(state, ui)}${selected ? extensionPanel(selected, { state, catalog: activeCatalog }) : orderList(state, ui)}${demoTools()}`}`;
 }

@@ -1,0 +1,29 @@
+[Unit]
+Description=Birdforge shop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=birdforge
+Group=birdforge
+WorkingDirectory=/srv/birdforge/app
+Environment=BIRDFORGE_DATA=/var/lib/birdforge
+Environment=PUBLIC_SOCKET=/run/birdforge/shop.sock
+Environment=ADMIN_HOST=127.0.0.1
+Environment=ADMIN_PORT=8790
+# Set SHOP_URL to your public shop URL in a systemd override before deployment.
+# Environment=SHOP_URL=https://shop.example.com/
+ExecStart=/usr/bin/node server/server.js
+Restart=always
+RestartSec=3
+RuntimeDirectory=birdforge
+RuntimeDirectoryMode=0755
+StateDirectory=birdforge
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=120M
+
+[Install]
+WantedBy=multi-user.target

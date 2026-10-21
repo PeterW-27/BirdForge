@@ -18,7 +18,7 @@ export function normalizeOrb(raw, orders) {
       || typeof m.read !== 'boolean' || typeof m.shown !== 'boolean') return false;
     seen.add(m.id);
     return true;
-  }).map(({ id, kind, text, at, orderId, read, shown }) => ({ id, kind, text, at, orderId, read, shown }));
+  }).map(({ id, kind, text, at, orderId, read, shown, owner }) => ({ id, kind, text, at, orderId, read, shown, ...(typeof owner === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(owner) ? { owner } : {}) }));
   orb.sessions = (Array.isArray(raw.sessions) ? raw.sessions : []).filter(validDate);
   orb.lastOpenedAt = validDate(raw.lastOpenedAt) ? raw.lastOpenedAt : null;
   return orb;
@@ -38,9 +38,13 @@ export function statusMessage(order) {
   return sentences[order.status] || `Your order ${id} is now ${order.status.toLowerCase()}.`;
 }
 
-export function appendMessage(orb, kind, text, orderId = null, at = new Date().toISOString()) {
+export function threadKey(message) {
+  return message.orderId || (message.owner ? `general:${message.owner}` : 'general');
+}
+
+export function appendMessage(orb, kind, text, orderId = null, at = new Date().toISOString(), owner = null) {
   const id = `orb-${Date.parse(at)}-${globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)}`;
-  return { ...orb, messages: [...orb.messages, { id, kind, text, orderId, at, read: false, shown: kind === 'customer' }] };
+  return { ...orb, messages: [...orb.messages, { id, kind, text, orderId, at, read: false, shown: kind === 'customer', ...(owner && !orderId ? { owner } : {}) }] };
 }
 
 // quote push

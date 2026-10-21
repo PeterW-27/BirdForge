@@ -1,14 +1,23 @@
-# Gunter's Forge Version 5.14.3
+# Birdforge Version 6.0
 
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
 ## Project overview
 
-Gunter's Forge is a shop application for Gunter, the blacksmith of Mautern. Customers can order swords, plate armor, chain mail, and cooking pots, then check their place on his work list. They can also request custom pieces or repairs.
+Birdforge is the shop application for Gunter, the blacksmith of Mautern. Customers can order swords, plate armor, chain mail, and cooking pots, then check their place on his work list. They can also request custom pieces or repairs.
 
 Gunter uses Forge Board to review orders, set prices, and update their status. Work Tickets gives him a separate list of unfinished jobs, ordered from oldest to newest. Each ticket contains the work details without the customer's contact information.
 
-The app is written in HTML, CSS, and JavaScript, with layouts for phones and desktop browsers. This version runs locally and stores data in the browser. Orders and payments are for demonstration only.
+The app is written in HTML, CSS, and JavaScript, with layouts for phones and desktop browsers. It runs fully offline in one browser, or online with a small Node.js server so customers and Gunter can use different devices. Orders and payments are for demonstration only.
+
+### New in V6.0
+
+- **Birdforge name and crest:** The shop is now called Birdforge. The new crest shows a sparrow resting on Gunter's anvil while sparks fly from the forge.
+- **Separate customer and workshop pages:** `index.html` is the customer shop. `forge.html` is Gunter's workshop with Forge Board and Work Tickets. Both pages share the same orders and update each other immediately.
+- **All-in-one demo page:** `demo.html` keeps the customer pages and the workshop in one window, for presenting or testing without a network.
+- **Online mode:** `server/server.js` stores orders on a server and pushes every change to open pages. Each customer device only sees its own orders and messages. The workshop page is never published to the internet.
+- **Business report:** Forge Board → Reports summarizes any period: delivered revenue, orders received, booked value, average order, average time to delivery, order mix, best sellers and a written summary, with comparison to the previous period, CSV download and printing.
+- **Private General inquiry:** Every customer device has its own General inquiry conversation, and Gunter sees each one as a separate thread.
 
 ### New in V5.14
 
@@ -20,7 +29,25 @@ The app is written in HTML, CSS, and JavaScript, with layouts for phones and des
 
 ### Open the standalone version
 
-Extract the project ZIP and open `dist/Gunters_Forge_V5_14_3_Standalone.html` in a modern browser. This file includes the code, styles, and images, so it works offline without installing anything else. Use the same browser and file location to keep working with the same saved demo data.
+Extract the project ZIP and open one of these files in a modern browser. Each file includes the code, styles, and images, so it works offline without installing anything else:
+
+| File | Use |
+| --- | --- |
+| `dist/Birdforge_V6_0_All_In_One_Standalone.html` | Customer pages and Gunter's workshop in one window. Best for a quick demo. |
+| `dist/Birdforge_V6_0_Standalone.html` | Customer shop only. |
+| `dist/Birdforge_V6_0_Workshop_Standalone.html` | Gunter's workshop only. |
+
+Open the customer and workshop files side by side in the same browser to see them update each other. Use the same browser and file location to keep working with the same saved demo data.
+
+### Run the online version
+
+The online version needs Node.js 18 or newer and no npm packages. From the project root:
+
+```bash
+node server/server.js
+```
+
+The customer shop opens at <http://127.0.0.1:8789> and Gunter's workshop at <http://127.0.0.1:8790>. Data is saved in `data/state.json`. Set `PUBLIC_HOST`, `PUBLIC_PORT`, `ADMIN_HOST`, `ADMIN_PORT`, `BIRDFORGE_DATA` or `SHOP_URL` to change where it listens and stores data. The `deploy/` folder contains generic deployment templates. Set your own `HOST`, `SHOP_DOMAIN` and `SHOP_URL` before use; review the service and Caddy configuration for your environment. `enable-https.sh` only stages and validates a Caddy configuration for review. Keep the workshop port private.
 
 ### Run the source version
 
@@ -50,7 +77,7 @@ With Python 3.9 or newer, run this from the project root:
 python3 tools/build_standalone.py
 ```
 
-On Windows, use `py tools/build_standalone.py`. This replaces `dist/Gunters_Forge_V5_14_3_Standalone.html` with a build of the current source, styles, and assets.
+On Windows, use `py tools/build_standalone.py`. This rebuilds the three standalone files in `dist/` from the current source, styles, and assets.
 
 ## Usage guide
 
@@ -76,7 +103,7 @@ Commissions and repairs can include a PNG, JPEG, or WebP reference image up to t
 
 ### Work through the queue
 
-Open Forge Board from the desktop navigation or Gunter on the phone's bottom bar. Here you can review orders, filter by type, enter quotes, and change statuses.
+Open Forge Board from the workshop page (or from Gunter on the all-in-one page). Here you can review orders, filter by type, enter quotes, and change statuses.
 
 Open Work Tickets to see unfinished jobs. One ticket represents an order line, which may include several units of the same product. Mark complete removes that ticket; once all tickets in an order are finished, the order moves to Delivering. Queue positions in My Orders update as work is completed.
 
@@ -98,6 +125,8 @@ Delivered orders are hidden from Forge Board by default; turn on Show delivered 
 - Saved products, category filters, and sorting.
 - Product creation and demo-data controls in Forge Board.
 - Phone and desktop layouts, with local saving and feedback when saving fails.
+- Business report with period selection, comparison, CSV export and printing.
+- Online mode with live updates between devices and private customer data.
 
 ## Team contributions
 
@@ -112,14 +141,18 @@ All three of us worked on the project through AI-assisted coding. Our main areas
 ## Project structure
 
 ```text
-index.html                Source application entry
-src/main.js               Application startup
+index.html                Customer shop entry
+forge.html                Gunter's workshop entry
+demo.html                 All-in-one demo entry
+src/main.js               Customer startup (forge.js and demo.js start the other pages)
 src/controller/           Navigation, event handling, and state updates
 src/data/                 Catalog, browser storage, and sample orders
 src/domain/               Order, product, repair, queue, and search rules
 src/ui/components/        Reusable interface components
 src/ui/pages/             Shop, Satchel, Repairs, Orders, and workshop pages
 src/extensions/           Extension registration
+server/server.js          Online server with live updates
+deploy/                   Server service file and deployment scripts
 styles/                   Shared theme, component, and responsive styles
 assets/                   Product images and crest
 tests/                    Automated business and browser checks
@@ -133,13 +166,13 @@ AI_USAGE.md               AI assistance disclosure
 The JavaScript tests need Node.js 18 or newer. No npm package installation is required:
 
 ```bash
-node --test tests/core.test.js tests/queue.test.js tests/search.test.js
+node --test tests/*.test.js
 ```
 
 The optional browser scripts in `tests/` need Python Playwright and Chromium. They cover ordering, commissions, and dialog layouts.
 
 ## Data and limitations
 
-The app uses `localStorage` for orders, favorites, added products, and uploaded images. Data belongs to the current browser profile and origin, so different devices or browser profiles do not share it. Clearing browser data removes it. Large images or browser storage restrictions can prevent saving; the app reports save failures and checks stored data when restoring it.
+Offline, the app uses `localStorage` for orders, favorites, added products, and uploaded images. Data belongs to the current browser profile and origin, so different devices or browser profiles do not share it. Clearing browser data removes it. Large images or browser storage restrictions can prevent saving; the app reports save failures and checks stored data when restoring it.
 
-Forge Board has no administrator login. This version has no remote database, shared customer accounts, payment processing, or inventory service. Use fictional details when demonstrating it.
+Online, orders, products and messages live on the server, while the satchel and saved items stay on each device. A customer is recognized by a random device ID stored in the browser, so clearing browser data or switching devices hides earlier orders from that customer (Gunter still sees them). The workshop has no login and relies on being reachable only from Gunter's computer. There is no payment processing or inventory service. Use fictional details when demonstrating it.

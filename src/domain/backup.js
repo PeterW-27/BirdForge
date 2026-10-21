@@ -39,7 +39,7 @@ export function parseBackup(content, catalog) {
   const fail = (message) => ({ error: message });
   if (typeof content !== 'string' || new TextEncoder().encode(content).length > MAX_BACKUP_BYTES) return fail('Choose a backup of 10 MB or smaller.');
   let data;
-  try { data = JSON.parse(content); } catch { return fail('This file is not valid JSON. Choose a Gunter’s Forge backup.'); }
+  try { data = JSON.parse(content); } catch { return fail('This file is not valid JSON. Choose a Birdforge backup.'); }
   if (!data || data.format !== BACKUP_FORMAT || data.version !== 1 || typeof data.exportedAt !== 'string'
     || !Number.isFinite(Date.parse(data.exportedAt))) return fail('This backup format or version is not supported.');
   const raw = data.state;

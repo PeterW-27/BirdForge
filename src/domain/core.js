@@ -35,7 +35,8 @@ export const isQuotedType = (type) => type === 'custom' || type === 'repair';
 // money format normalizing
 export const money = (cents) => {
   if (cents === null || cents === undefined) return '';
-  return (cents / 100).toFixed(2) + ' crowns';
+  const [whole, fraction] = (cents / 100).toFixed(2).split('.');
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction} crowns`;
 };
 
 // esacapehtml

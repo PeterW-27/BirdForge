@@ -1,4 +1,4 @@
-import { emptyOrb, appendMessage, openCustomerOrb, pendingMessages } from '../../domain/orb.js';
+import { emptyOrb, appendMessage, openCustomerOrb, pendingMessages, threadKey } from '../../domain/orb.js';
 import { text } from './shared.js';
 
 // orb start
@@ -88,9 +88,9 @@ export function mountOrb({ documentRoot, getState, saveOrb, getView, navigate })
     const root = documentRoot.getElementById('forge-messages');
     if (!root) { boardSignature = ''; return; }
     const messages = orb().messages;
-    const activeThreads = [...new Set(messages.filter((m) => m.kind !== 'notification').map((m) => m.orderId))];
-    if (!activeThreads.includes(thread)) thread = activeThreads[0] ?? null;
-    const unread = messages.filter((m) => m.kind === 'customer' && !m.read && m.orderId === thread);
+    const activeThreads = [...new Set(messages.filter((m) => m.kind !== 'notification').map(threadKey))];
+    if (!activeThreads.includes(thread)) thread = activeThreads[0] ?? 'general';
+    const unread = messages.filter((m) => m.kind === 'customer' && !m.read && threadKey(m) === thread);
     if (unread.length) {
       const ids = new Set(unread.map((m) => m.id));
       if (saveOrb({ ...orb(), messages: messages.map((m) => ids.has(m.id) ? { ...m, read: true } : m) })) return;
@@ -98,14 +98,18 @@ export function mountOrb({ documentRoot, getState, saveOrb, getView, navigate })
     const signature = JSON.stringify([orb(), thread]);
     if (signature === boardSignature && root.children.length) return;
     boardSignature = signature;
-    const threads = activeThreads.length ? activeThreads : [null];
-    const selectedOrder = ownOrders().find((o) => o.id === thread);
-    const items = messages.filter((m) => m.orderId === thread);
+    const threads = activeThreads.length ? activeThreads : ['general'];
+    const general = (key) => key.startsWith('general');
+    const customerName = (key) => {
+      if (!general(key)) return ownOrders().find((o) => o.id === key)?.customer.name || 'Customer messages';
+      const owner = key.slice('general:'.length);
+      return getState().orders.find((o) => owner && o.owner === owner)?.customer.name || (owner ? `Visitor ${owner.slice(0, 4).toUpperCase()}` : 'Customer messages');
+    };
+    const items = messages.filter((m) => threadKey(m) === thread);
     replaceKeepingFocus(root, `<div class="forge-messenger"><aside class="forge-threads" aria-label="Message conversations">${threads.map((id) => {
-      const order = ownOrders().find((o) => o.id === id);
-      const count = messages.filter((m) => m.kind === 'customer' && !m.read && m.orderId === id).length;
-      return `<button type="button" data-orb-action="thread" data-id="${text(id || '')}" aria-pressed="${id === thread}"><strong>${id ? `#${text(id)}` : 'General inquiry'}${count ? ` <span class="forge-unread">${count}</span>` : ''}</strong><small>${text(order?.customer.name || 'Customer messages')}</small></button>`;
-    }).join('')}</aside><section class="forge-conversation"><header class="forge-conversation-title"><strong>${thread ? `#${text(thread)} · ${text(selectedOrder?.customer.name || '')}` : 'General inquiry'}</strong></header><div class="orb-timeline" role="log" aria-label="Customer conversation">${history(items, true)}</div>${composer(true)}</section></div>`);
+      const count = messages.filter((m) => m.kind === 'customer' && !m.read && threadKey(m) === id).length;
+      return `<button type="button" data-orb-action="thread" data-id="${text(id)}" aria-pressed="${id === thread}"><strong>${general(id) ? 'General inquiry' : `#${text(id)}`}${count ? ` <span class="forge-unread">${count}</span>` : ''}</strong><small>${text(customerName(id))}</small></button>`;
+    }).join('')}</aside><section class="forge-conversation"><header class="forge-conversation-title"><strong>${general(thread) ? 'General inquiry' : `#${text(thread)}`} · ${text(customerName(thread))}</strong></header><div class="orb-timeline" role="log" aria-label="Customer conversation">${history(items, true)}</div>${composer(true)}</section></div>`);
   }
 
   function dismissBanners() {
@@ -163,7 +167,7 @@ export function mountOrb({ documentRoot, getState, saveOrb, getView, navigate })
     const action = button.dataset.orbAction;
     if (action === 'open') open();
     if (action === 'close') close();
-    if (action === 'thread') { thread = button.dataset.id || null; boardSignature = ''; renderBoard(); }
+    if (action === 'thread') { thread = button.dataset.id || 'general'; boardSignature = ''; renderBoard(); }
     if (action === 'order') {
       const id = button.dataset.id;
       if (!ownOrders().some((o) => o.id === id)) { open(); return; }
@@ -198,12 +202,14 @@ export function mountOrb({ documentRoot, getState, saveOrb, getView, navigate })
     const value = form.elements.message.value.trim();
     if (!value || value.length > 1600) return;
     const smith = form.dataset.orbForm === 'gunter';
-    const orderId = (smith ? thread : customerOrder) || null;
+    const generalThread = smith && (thread || 'general').startsWith('general');
+    const orderId = (smith ? (generalThread ? null : thread) : customerOrder) || null;
+    const owner = generalThread && thread.startsWith('general:') ? thread.slice('general:'.length) : null;
     if (orderId && !ownOrders().some((o) => o.id === orderId)) return;
     const key = draftKey(smith);
     const oldDraft = drafts.get(key);
     drafts.delete(key);
-    let next = appendMessage(orb(), smith ? 'gunter' : 'customer', value, orderId);
+    let next = appendMessage(orb(), smith ? 'gunter' : 'customer', value, orderId, new Date().toISOString(), owner);
     if (!smith) next = openCustomerOrb(next);
     if (!saveOrb(next)) {
       drafts.set(key, oldDraft || value);
@@ -237,5 +243,5 @@ export function mountOrb({ documentRoot, getState, saveOrb, getView, navigate })
     renderBoard();
     if (!smith && !dialog.open) showBanners();
   }
-  return { render, close, reset() { close(); dismissBanners(); drafts.clear(); chatSignature = ''; boardSignature = ''; customerOrder = ''; thread = null; } };
+  return { render, close, reset() { close(); dismissBanners(); drafts.clear(); chatSignature = ''; boardSignature = ''; customerOrder = ''; thread = 'general'; } };
 }

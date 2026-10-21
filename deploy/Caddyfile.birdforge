@@ -1,0 +1,7 @@
+# Set SHOP_DOMAIN in the Caddy service environment before using this template.
+{$SHOP_DOMAIN} {
+    request_body {
+        max_size 2MB
+    }
+    reverse_proxy unix//run/birdforge/shop.sock
+}

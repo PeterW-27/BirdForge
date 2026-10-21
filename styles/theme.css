@@ -133,9 +133,9 @@ body[data-role="smith"] .site-header { background: linear-gradient(180deg, #2b20
     top: 46%;
     right: 0;
     width: auto;
-    height: 96%;
+    height: 102%;
     max-width: none;
-    transform: translate(48%, -50%);
+    transform: translate(35%, -50%);
     opacity: .12;
     filter: grayscale(1) sepia(.65) brightness(1.7) blur(.3px);
     pointer-events: none;

@@ -7,7 +7,7 @@ import { loadState, saveState, resetState, storageAvailable, STORAGE_KEY } from 
 import { addSampleOrders } from '../data/samples.js';
 import { makeState, changeQuantity, cartCount, totalCents, money, nextOrderId, placeCartOrder, placeDirectOrder, placeRepairOrder, updateStatus, setQuote, toggleTicket, restoreState, queueInfo, MIN_BULK, MAX_BULK } from '../domain/core.js';
 import { pageForQuery } from '../domain/search.js';
-import { header, footer, mobileNav, SMITH_VIEWS } from '../ui/components/site-shell.js';
+import { header, footer, mobileNav, CUSTOMER_VIEWS, SMITH_VIEWS } from '../ui/components/site-shell.js';
 import { productModal, referenceModal } from '../ui/components/product-modal.js';
 import { shopPage } from '../ui/pages/shop.js';
 import { cartPage } from '../ui/pages/cart.js';
@@ -16,27 +16,35 @@ import { adminPage, productPreview } from '../ui/pages/admin.js';
 import { ticketsPage } from '../ui/pages/tickets.js';
 import { repairsPage } from '../ui/pages/repairs.js';
 import { featuresFor, getFeature } from '../extensions/registry.js';
+import { businessReport, reportCsv } from '../domain/reports.js';
+import { createSync, loadLocal, saveLocal } from '../data/sync.js';
 
-const VIEWS = Object.freeze(['shop', 'cart', 'repairs', 'orders', 'admin', 'tickets']);
 const VIEW_TITLES = Object.freeze({ shop: 'Shop', cart: 'Satchel', repairs: 'Repairs', orders: 'My Orders', admin: 'Forge Board', tickets: 'Work Tickets' });
 const MAX_IMAGE_BYTES = 350000;
 const IMAGE_TYPES = Object.freeze(['image/png', 'image/jpeg', 'image/webp']);
 const SAVE_FAILED = 'Gunter could not save this in your browser (storage is full or blocked). Nothing was changed. Try again without a photo.';
 
 // opening the webpage and read data stored
-export function mountApp(documentRoot = document) {
+export function mountApp(documentRoot = document, { app = 'customer' } = {}) {
+  const side = ['smith', 'all'].includes(app) ? app : 'customer';
+  const views = side === 'smith' ? SMITH_VIEWS : side === 'all' ? [...CUSTOMER_VIEWS, ...SMITH_VIEWS] : CUSTOMER_VIEWS;
+  const sync = documentRoot.body.dataset.sync === 'server' ? createSync({ onShared: (shared) => acceptShared(shared), onStatus: (isOnline) => { online = isOnline; render(); } }) : null;
+  const otherApp = side === 'all' ? null : documentRoot.body.dataset.otherApp || (sync ? null : (side === 'smith' ? 'index.html' : 'forge.html'));
   const main = documentRoot.getElementById('main');
   const modalRoot = documentRoot.getElementById('modal-root');
   const toastRoot = documentRoot.getElementById('toast-root');
-  documentRoot.getElementById('shell-header').innerHTML = header();
-  documentRoot.getElementById('shell-footer').innerHTML = footer();
-  documentRoot.getElementById('shell-mobile-nav').innerHTML = mobileNav();
+  documentRoot.getElementById('shell-header').innerHTML = header(side);
+  documentRoot.getElementById('shell-footer').innerHTML = footer(side, Boolean(otherApp), Boolean(sync));
+  documentRoot.getElementById('shell-mobile-nav').innerHTML = mobileNav(side);
+  if (sync) documentRoot.querySelector('.header-inner')?.insertAdjacentHTML('beforeend', '<span class="live-pill" data-live role="status">Live</span>');
   const searchBox = () => documentRoot.getElementById('search');
 
   const persistent = storageAvailable();
-  let state = loadState(builtInCatalog);
+  const local = sync ? loadLocal() : null;
+  let state = sync ? restoreState({ ...makeState(), cart: local.cart, favorites: local.favorites }, builtInCatalog) : loadState(builtInCatalog);
+  let online = true;
   let catalog = [...builtInCatalog, ...state.addedProducts];
-  const ui = { view: 'shop', search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', showDelivered: false, productFormOpen: false, lastOrder: null, recycle: false, recycleDetails: '' };
+  const ui = { view: views[0], search: '', category: 'All', savedOnly: false, sort: 'featured', adminTab: 'orders', adminFilter: 'All', showDelivered: false, productFormOpen: false, lastOrder: null, recycle: false, recycleDetails: '', reportRange: '7d', reportFrom: '', reportTo: '' };
   let backupRead = 0;
   let savingBackup = false;
   let activeModal = null;
@@ -58,6 +66,14 @@ export function mountApp(documentRoot = document) {
 
   // save and render
   function commit(next, failureMessage = SAVE_FAILED, capture = true, beforeRender = null) {
+    if (sync) {
+      state = restoreState(next, builtInCatalog);
+      catalog = [...builtInCatalog, ...state.addedProducts];
+      keepLocal();
+      beforeRender?.();
+      render();
+      return true;
+    }
     const restored = restoreState(capture ? captureUpdates(state, next) : next, builtInCatalog);
     if (persistent && !saveState(restored)) {
       notice(failureMessage);
@@ -70,7 +86,52 @@ export function mountApp(documentRoot = document) {
     return true;
   }
 
+  function keepLocal() {
+    const shown = (state.orb?.messages || []).filter((m) => m.shown).map((m) => m.id);
+    Object.assign(local, { cart: state.cart, favorites: state.favorites, shown: [...new Set([...local.shown, ...shown])].slice(-500), sessions: state.orb?.sessions || [], lastOpenedAt: state.orb?.lastOpenedAt || null });
+    saveLocal(local);
+  }
+
+  function acceptShared(shared, force = false) {
+    const shown = new Set(local.shown);
+    const orb = shared.orb ? { messages: shared.orb.messages.map((m) => ({ ...m, shown: m.kind === 'customer' || shown.has(m.id) })), sessions: local.sessions, lastOpenedAt: local.lastOpenedAt } : undefined;
+    state = restoreState({ ...shared, cart: state.cart, favorites: state.favorites, orb }, builtInCatalog);
+    catalog = [...builtInCatalog, ...state.addedProducts];
+    if (!force && documentRoot.activeElement?.closest?.('form:not([data-orb-form])')) {
+      messenger?.render();
+      return;
+    }
+    render();
+    if (activeModal?.mode === 'detail') openModal(activeModal.id, 'detail');
+  }
+
+  function act(action, onDone, onError = notice) {
+    sync.send(action).then((reply) => {
+      if (reply.error) {
+        onError(reply.error);
+        if (reply.shared) acceptShared(reply.shared);
+        return;
+      }
+      acceptShared(reply.shared, true);
+      onDone?.(reply.result || {});
+    });
+  }
+
+  function saveOrbRemote(nextOrb) {
+    const before = new Map((state.orb?.messages || []).map((m) => [m.id, m]));
+    const added = nextOrb.messages.filter((m) => !before.has(m.id));
+    const read = nextOrb.messages.filter((m) => m.read && before.has(m.id) && !before.get(m.id).read).map((m) => m.id);
+    commit({ ...state, orb: nextOrb });
+    const failed = (message) => { notice(message); messenger?.render(); };
+    for (const m of added) act({ type: 'message.send', text: m.text, orderId: m.orderId, owner: m.owner }, null, failed);
+    if (read.length) act({ type: 'message.read', ids: read }, null, () => {});
+    return true;
+  }
+
+  const withoutFiles = (data) => Object.fromEntries(Object.entries(data).filter(([, value]) => typeof value === 'string'));
+
   function storageBanner() {
+    if (sync && !online) return '<p class="storage-banner" role="status">Connection to the forge was lost. Reconnecting…</p>';
     if (persistent) return '';
     return '<p class="storage-banner" role="status">This browser is not saving data, so orders will disappear when you close the page.</p>';
   }
@@ -110,7 +171,7 @@ export function mountApp(documentRoot = document) {
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-    const role = SMITH_VIEWS.includes(ui.view) ? 'smith' : 'customer';
+    const role = side === 'all' ? (SMITH_VIEWS.includes(ui.view) ? 'smith' : 'customer') : side;
     documentRoot.body.dataset.role = role;
     documentRoot.querySelectorAll('[data-nav-role]').forEach((group) => {
       group.hidden = group.dataset.navRole !== role;
@@ -118,8 +179,13 @@ export function mountApp(documentRoot = document) {
     const search = searchBox();
     search.closest('.search-field').hidden = role === 'smith';
     if (search.value !== ui.search) search.value = ui.search;
-    documentRoot.title = `${VIEW_TITLES[ui.view] || 'Shop'} · Gunter's Forge`;
+    documentRoot.title = `${VIEW_TITLES[ui.view] || 'Shop'} · Birdforge`;
     messenger?.render();
+    const live = documentRoot.querySelector('[data-live]');
+    if (live) {
+      live.textContent = online ? 'Live' : 'Offline';
+      live.classList.toggle('is-offline', !online);
+    }
   }
 
   // clear popup forms
@@ -134,7 +200,7 @@ export function mountApp(documentRoot = document) {
 
   // navigate and scroll to top
   function navigate(view) {
-    if (!VIEWS.includes(view)) return;
+    if (!views.includes(view)) return;
     closeModal();
     if (SMITH_VIEWS.includes(ui.view) && !SMITH_VIEWS.includes(view)) {
       clearTimeout(toastTimer);
@@ -261,20 +327,37 @@ export function mountApp(documentRoot = document) {
       showFormError(form, SAVE_FAILED);
       return;
     }
-    if (result.order.type === 'standard') {
+    orderPlaced(result.order);
+  }
+
+  function orderPlaced(order) {
+    if (order.type === 'standard') {
       ui.recycle = false;
       ui.recycleDetails = '';
     }
     navigate('orders');
-    ui.lastOrder = result.order.id;
+    ui.lastOrder = order.id;
     render();
-    const info = queueInfo(state, result.order.id);
-    notice(info?.stage === 'queued' ? `Order ${result.order.id} sent. You are #${info.position} in line.` : `Request ${result.order.id} sent to Gunter.`);
+    const info = queueInfo(state, order.id);
+    notice(info?.stage === 'queued' ? `Order ${order.id} sent. You are #${info.position} in line.` : `Request ${order.id} sent to Gunter.`);
+  }
+
+  async function remoteOrder(action, form) {
+    const reply = await sync.send(action);
+    if (reply.error) {
+      showFormError(form, reply.error);
+      return;
+    }
+    if (action.type === 'order.cart') state = { ...state, cart: {} };
+    acceptShared(reply.shared, true);
+    keepLocal();
+    orderPlaced({ id: reply.result.orderId, type: reply.result.orderType });
   }
 
   function submitCart(form) {
     clearFormError(form);
     const data = { ...Object.fromEntries(new FormData(form).entries()), recycle: ui.recycle ? 'yes' : 'no', recycleDetails: ui.recycle ? ui.recycleDetails : '' };
+    if (sync) return remoteOrder({ type: 'order.cart', cart: state.cart, input: withoutFiles(data) }, form);
     finishOrder(placeCartOrder(catalog, state, data, nextOrderId(state.orders), new Date().toISOString()), form);
   }
 
@@ -308,7 +391,7 @@ export function mountApp(documentRoot = document) {
     button.disabled = true;
     try {
       const image = await readImage(data.reference);
-      finishOrder(placeOrder(data, image), form);
+      await placeOrder(data, image);
     } catch (error) {
       showFormError(form, error.message || 'Unable to send the photo.', form.elements.reference || null);
     } finally {
@@ -320,13 +403,16 @@ export function mountApp(documentRoot = document) {
   function submitDirect(form) {
     return submitWithImage(form, (data, image) => {
       data.recycle = 'no';
-      return placeDirectOrder(catalog, state, form.dataset.id, form.dataset.mode, data, nextOrderId(state.orders), new Date().toISOString(), image);
+      if (sync) return remoteOrder({ type: 'order.direct', productId: form.dataset.id, mode: form.dataset.mode, input: withoutFiles(data), image }, form);
+      return finishOrder(placeDirectOrder(catalog, state, form.dataset.id, form.dataset.mode, data, nextOrderId(state.orders), new Date().toISOString(), image), form);
     });
   }
 
   // submit repair orders
   function submitRepair(form) {
-    return submitWithImage(form, (data, image) => placeRepairOrder(state, data, nextOrderId(state.orders), new Date().toISOString(), image));
+    return submitWithImage(form, (data, image) => (sync
+      ? remoteOrder({ type: 'order.repair', input: withoutFiles(data), image }, form)
+      : finishOrder(placeRepairOrder(state, data, nextOrderId(state.orders), new Date().toISOString(), image), form)));
   }
 
   // submit add product form from Forge Board
@@ -338,6 +424,17 @@ export function mountApp(documentRoot = document) {
     button.disabled = true;
     try {
       const image = await readImage(data.image);
+      if (sync) {
+        const reply = await sync.send({ type: 'product.add', input: withoutFiles(data), image });
+        if (reply.error) {
+          showFormError(form, reply.error);
+          return;
+        }
+        ui.productFormOpen = true;
+        acceptShared(reply.shared, true);
+        notice(`${reply.result.productName} added to ${reply.result.productGroup}. It is now in the shop.`);
+        return;
+      }
       const result = addProduct(state, data, image);
       if (result.error) {
         showFormError(form, result.error);
@@ -355,6 +452,10 @@ export function mountApp(documentRoot = document) {
 
   // submit quote
   function submitQuote(form) {
+    if (sync) {
+      act({ type: 'order.quote', id: form.dataset.id, crowns: new FormData(form).get('quote') }, () => notice(`Quote saved for ${form.dataset.id}. The customer can see it under My Orders.`), (message) => showFormError(form, message));
+      return;
+    }
     const result = setQuote(state, form.dataset.id, new FormData(form).get('quote'));
     if (result.error) {
       showFormError(form, result.error);
@@ -440,6 +541,10 @@ export function mountApp(documentRoot = document) {
     const product = state.addedProducts.find((item) => item.id === id);
     if (!product) return;
     if (globalThis.confirm && !globalThis.confirm(`Remove ${product.name} from the shop?`)) return;
+    if (sync) {
+      act({ type: 'product.remove', id }, () => notice(`${product.name} was removed from the shop.`));
+      return;
+    }
     const result = removeProduct(state, id);
     if (result.error) {
       notice(result.error);
@@ -477,7 +582,7 @@ export function mountApp(documentRoot = document) {
       </div></section></div>`;
     documentRoot.body.classList.add('has-modal');
     const input = documentRoot.getElementById('backup-name');
-    input.value = `Gunters_Forge_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    input.value = `Birdforge_Backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     input.focus();
   }
 
@@ -553,6 +658,19 @@ export function mountApp(documentRoot = document) {
       const result = parseBackup(await file.text(), builtInCatalog);
       if (request !== backupRead) return;
       if (result.error) { notice(result.error); return; }
+      if (sync) {
+        if (side !== 'smith') { notice('Only Gunter can restore a backup.'); return; }
+        if (!globalThis.confirm?.('Restore this backup? This replaces all orders and messages on the server.')) return;
+        act({ type: 'backup.restore', state: result.state }, () => {
+          backupRead += 1;
+          messenger?.reset();
+          closeModal();
+          Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false, showDelivered: false });
+          render();
+          notice('Backup restored.');
+        });
+        return;
+      }
       if (!globalThis.confirm?.('Restore this backup? This replaces all current browser data.')) return;
       if (!commit(result.state, 'Gunter could not save this backup in your browser (storage is full or blocked). Current data was kept.', false, () => messenger?.reset())) return;
       backupRead += 1;
@@ -567,6 +685,16 @@ export function mountApp(documentRoot = document) {
 
   // reset data
   function resetDemo() {
+    if (sync) {
+      if (globalThis.confirm && !globalThis.confirm('Clear all orders and messages on the server for every customer?')) return;
+      act({ type: 'demo.reset' }, () => {
+        messenger?.reset();
+        Object.assign(ui, { lastOrder: null, recycle: false, recycleDetails: '', savedOnly: false, showDelivered: false });
+        render();
+        notice('Demo data cleared.');
+      });
+      return;
+    }
     if (globalThis.confirm && !globalThis.confirm('Clear all orders, the satchel and saved items in this browser?')) return;
     backupRead += 1;
     resetState();
@@ -603,6 +731,9 @@ export function mountApp(documentRoot = document) {
         return;
       case 'shop':
         navigate('shop');
+        return;
+      case 'open-app':
+        globalThis.open?.(otherApp, '_blank');
         return;
       case 'clear-filters':
         Object.assign(ui, { category: 'All', savedOnly: false, sort: 'featured', search: '' });
@@ -659,6 +790,10 @@ export function mountApp(documentRoot = document) {
         render();
         return;
       case 'ticket-complete': {
+        if (sync) {
+          act({ type: 'ticket.complete', id }, (result) => notice(result.advanced ? 'Order finished. Status changed to Delivering.' : 'Item finished. The rest of this order stays on the list.'));
+          return;
+        }
         const result = toggleTicket(state, id);
         if (result.error) {
           notice(result.error);
@@ -668,6 +803,10 @@ export function mountApp(documentRoot = document) {
         return;
       }
       case 'add-samples':
+        if (sync) {
+          act({ type: 'demo.samples' }, () => notice('3 sample orders added to the work list.'));
+          return;
+        }
         if (commit(addSampleOrders(catalog, state))) notice('3 sample orders added to the work list.');
         return;
       case 'reset-demo':
@@ -686,6 +825,20 @@ export function mountApp(documentRoot = document) {
       case 'remove-product':
         removeAddedProduct(id);
         return;
+      case 'report-print':
+        globalThis.print?.();
+        return;
+      case 'report-csv': {
+        const report = businessReport(state, { range: ui.reportRange, from: ui.reportFrom, to: ui.reportTo });
+        const blob = new Blob([reportCsv(report)], { type: 'text/csv' });
+        const link = documentRoot.createElement('a');
+        link.href = globalThis.URL.createObjectURL(blob);
+        link.download = `birdforge-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => globalThis.URL.revokeObjectURL(link.href), 1000);
+        notice('Report downloaded.');
+        return;
+      }
       default: {
         const feature = getFeature(button.closest('[data-extension]')?.dataset.extension);
         if (!feature?.onAction) return;
@@ -731,6 +884,18 @@ export function mountApp(documentRoot = document) {
       render();
       return;
     }
+    if (['report-range', 'report-from', 'report-to'].includes(el.id)) {
+      const key = { 'report-range': 'reportRange', 'report-from': 'reportFrom', 'report-to': 'reportTo' }[el.id];
+      ui[key] = el.value;
+      if (el.id === 'report-range' && el.value === 'custom' && !ui.reportFrom) {
+        const today = new Date();
+        const local = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        ui.reportTo = local(today);
+        ui.reportFrom = local(new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000));
+      }
+      render();
+      return;
+    }
     if (el.id === 'show-delivered') {
       ui.showDelivered = el.checked;
       render();
@@ -741,6 +906,11 @@ export function mountApp(documentRoot = document) {
       return;
     }
     if (el.matches('#add-product select')) updateProductPreview();
+    if (el.matches('select[data-action="status"]') && sync) {
+      const current = state.orders.find((order) => order.id === el.dataset.id);
+      act({ type: 'order.status', id: el.dataset.id, status: el.value, from: current?.status }, () => notice(`${el.dataset.id} is now ${el.value}.`));
+      return;
+    }
     if (el.matches('select[data-action="status"]')) {
       const result = updateStatus(state, el.dataset.id, el.value);
       if (result.error) {
@@ -804,7 +974,7 @@ export function mountApp(documentRoot = document) {
       return;
     }
     if (event.key === 'Escape') closeModal();
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    if (side !== 'smith' && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       navigate('shop');
       searchBox().focus();
@@ -829,6 +999,7 @@ export function mountApp(documentRoot = document) {
   }, true);
 
   globalThis.addEventListener?.('storage', (event) => {
+    if (sync) return;
     if (event.key !== STORAGE_KEY && event.key !== null) return;
     const typing = documentRoot.activeElement?.closest?.('form');
     state = loadState(builtInCatalog);
@@ -842,17 +1013,18 @@ export function mountApp(documentRoot = document) {
   documentRoot.getElementById('brand').addEventListener('click', (event) => {
     event.preventDefault();
     ui.search = '';
-    navigate('shop');
+    navigate(views[0]);
   });
 
   // orb
   messenger = mountOrb({ documentRoot, getState: () => state, getView: () => ui.view,
-    saveOrb: (orb) => commit({ ...state, orb }, SAVE_FAILED, false),
+    saveOrb: (orb) => (sync ? saveOrbRemote(orb) : commit({ ...state, orb }, SAVE_FAILED, false)),
     navigate: (view) => {
       if (view === 'admin') Object.assign(ui, { adminTab: 'orders', adminFilter: 'All', showDelivered: true });
       navigate(view);
     }, notify: notice });
   render();
+  sync?.connect();
   if (!persistent) notice('This browser is not saving data. Orders will disappear when you close the page.');
 
   return {

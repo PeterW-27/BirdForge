@@ -1,6 +1,6 @@
 {
-  "name": "gunters-forge-v5-14-3",
-  "version": "5.14.3",
+  "name": "birdforge",
+  "version": "6.0.0",
   "private": true,
   "type": "module",
   "description": "Modular medieval blacksmith storefront, commissions, bulk orders and chronological production tickets",

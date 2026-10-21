@@ -11,7 +11,7 @@ export const typeLabel = (type) => TYPE_LABELS[type] || type;
 
 // order status management
 export function crestImage(cssClass = 'crest') {
-  return `<img class="${text(cssClass)}" src="${crest}" alt="Gunter's Forge coat of arms">`;
+  return `<img class="${text(cssClass)}" src="${crest}" alt="Birdforge coat of arms">`;
 }
 
 export function heading(eyebrow, title, description = '') {
