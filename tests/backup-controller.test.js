@@ -63,13 +63,13 @@ function environment(initial = seed()) {
   });
 }
 
-async function mounted(callback) {
+async function mounted(callback, options = {}) {
   const fixture = environment();
   const globals = fixture.globals();
   const saved = Object.fromEntries(Object.keys(globals).map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   try {
     for (const [name, value] of Object.entries(globals)) Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
-    const app = mountApp(fixture.document);
+    const app = mountApp(fixture.document, options);
     await callback(fixture, app);
   } finally {
     for (const [name, descriptor] of Object.entries(saved)) {
@@ -122,7 +122,7 @@ test('controller preserves original data when restore cannot be saved and permit
 test('controller export produces a versioned JSON download without changing state', async () => mounted(async (fixture, app) => {
   const before = app.getState();
   fixture.save();
-  assert.match(fixture.downloads[0], /^Gunters_Forge_Backup_.*\.json$/);
+  assert.match(fixture.downloads[0], /^Birdforge_Backup_.*\.json$/);
   const data = JSON.parse(await fixture.blobs[0].text());
   assert.equal(data.format, 'gunters-forge-backup');
   assert.deepEqual(data.state, before);
@@ -238,7 +238,7 @@ test('opening another file chooser cancels a stale asynchronous backup read', as
 
 test('rebuilt standalone script boots and renders the same feature controls', () => {
   const fixture = environment();
-  const html = readFileSync(new URL('../dist/Gunters_Forge_V5_14_3_Standalone.html', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../dist/Birdforge_V6_0_Workshop_Standalone.html', import.meta.url), 'utf8');
   const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
   runInNewContext(script, fixture.globals());
   const button = { dataset: { view: 'admin' } };
@@ -268,4 +268,4 @@ test('a failed status save creates neither a changed order nor a ghost notificat
   assert.equal(saved.orb.messages.length, 1);
   assert.equal(saved.orb.messages[0].shown, false);
   assert.equal(saved.orb.messages[0].read, false);
-}));
+}, { app: 'smith' }));

@@ -83,7 +83,7 @@ test('empty backups are valid and footer contains only two backup controls', () 
   const result = parseBackup(createBackup(makeState(), catalog), catalog);
   assert.deepEqual(result.state, makeState());
   const html = footer();
-  assert.equal((html.match(/<button /g) || []).length, 2);
+  assert.equal((html.match(/data-action="(?:export|restore)-backup"/g) || []).length, 2);
   assert.match(html, /data-action="export-backup">Backup/);
   assert.match(html, /data-action="restore-backup">Restore/);
   assert.match(html, /id="backup-file"[^>]* hidden/);
