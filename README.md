@@ -2,7 +2,7 @@
 
 Yuzhe Wang, Zilu Niu, and Lin Ma
 
-Live demo: <https://birdforge.shop>
+Live demo (now offline): <https://birdforge.shop> 
 
 ## Project overview
 
